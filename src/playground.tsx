@@ -29,6 +29,8 @@ export interface WireframePlaygroundProps {
   autocomplete?: boolean;
   /** Line numbers in the editor. Default true. */
   lineNumbers?: boolean;
+  /** Wrap long lines in the editor instead of scrolling sideways. Default true. */
+  lineWrapping?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -36,7 +38,7 @@ export interface WireframePlaygroundProps {
 const TYPING_PAUSE = 400;
 
 export const WireframePlayground = forwardRef<WireframeEditorHandle, WireframePlaygroundProps>(function WireframePlayground(
-  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, autocomplete, lineNumbers, className, style },
+  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, autocomplete, lineNumbers, lineWrapping, className, style },
   ref,
 ) {
   const [inner, setInner] = useState(defaultValue ?? "");
@@ -59,6 +61,7 @@ export const WireframePlayground = forwardRef<WireframeEditorHandle, WireframePl
           issues={issues}
           autocomplete={autocomplete}
           lineNumbers={lineNumbers}
+          lineWrapping={lineWrapping}
         />
         <BoardViewer key={`${chips}${zoomControls}`} state={state} streaming={typing} chips={chips} zoomControls={zoomControls} showProblems={showProblems} problemsAs="summary" />
       </div>

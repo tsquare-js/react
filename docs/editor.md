@@ -24,11 +24,12 @@ The editor fills its box, so give it a height: with the stylesheet it's 20rem un
 | `onProblems` | | Called with the problems when the text has some, after a pause in typing, and with `[]` once they're fixed. See [Problems](problems.md). |
 | `autocomplete` | `true` | Suggestions for components, props, option words, icons and accents as you type (Ctrl+Space to ask). |
 | `lineNumbers` | `true` | Line numbers in a gutter. |
+| `lineWrapping` | `true` | Wrap long lines instead of scrolling sideways. A wrapped line continues 4 spaces past its own indentation, so it doesn't look like a nested element. |
 | `ariaLabel` | `"Wireframe text"` | The editable area's accessible name. |
 | `className` | | Added to the root, next to `tsquare-editor`. |
 | `style` | | On the root. |
 
-`autocomplete`, `lineNumbers` and `ariaLabel` are read when the editor is created; give the component a new `key` to change them later.
+`autocomplete`, `lineNumbers`, `lineWrapping` and `ariaLabel` are read when the editor is created; give the component a new `key` to change them later.
 
 ## What it does as you type
 

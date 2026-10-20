@@ -20,6 +20,8 @@ export interface WireframeEditorProps {
   autocomplete?: boolean;
   /** Line numbers. Default true. */
   lineNumbers?: boolean;
+  /** Wrap long lines instead of scrolling sideways; a wrapped line continues 4 spaces past its indentation. Default true. */
+  lineWrapping?: boolean;
   /** The editable area's accessible name. Default "Wireframe text". */
   ariaLabel?: string;
   className?: string;
@@ -92,7 +94,7 @@ export interface EditorCoreProps extends Omit<WireframeEditorProps, "onProblems"
 
 /** The editor itself: creates tsquare/editor in a div, keeps it in sync with `value`, underlines `issues`. */
 export const EditorCore = forwardRef<WireframeEditorHandle, EditorCoreProps>(function EditorCore(
-  { value, defaultValue, onChange, issues, autocomplete = true, lineNumbers = true, ariaLabel, className, style },
+  { value, defaultValue, onChange, issues, autocomplete = true, lineNumbers = true, lineWrapping = true, ariaLabel, className, style },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
@@ -105,6 +107,7 @@ export const EditorCore = forwardRef<WireframeEditorHandle, EditorCoreProps>(fun
       doc: value ?? defaultValue ?? "",
       data: autocomplete ? languageData() : undefined,
       lineNumbers,
+      lineWrapping,
       ariaLabel,
       onChange: (text) => change.current?.(text),
     });
@@ -113,7 +116,7 @@ export const EditorCore = forwardRef<WireframeEditorHandle, EditorCoreProps>(fun
       instance.destroy();
       editor.current = null;
     };
-    // autocomplete, lineNumbers and ariaLabel are set when the editor is made (remount to change them)
+    // autocomplete, lineNumbers, lineWrapping and ariaLabel are set when the editor is made (remount to change them)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

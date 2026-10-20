@@ -33,6 +33,7 @@ With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-h
 | `zoomControls` | `true` | Zoom out, zoom level and zoom in above the board. |
 | `autocomplete` | `true` | Autocomplete in the editor. |
 | `lineNumbers` | `true` | Line numbers in the editor. |
+| `lineWrapping` | `true` | Wrap long lines in the editor instead of scrolling sideways. |
 | `className` | | Added to the root, next to `tsquare-playground`. |
 | `style` | | On the root. |
 

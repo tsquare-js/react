@@ -317,10 +317,14 @@ test("WireframeEditor: problems underlined after a pause in typing, onProblems w
   await view.unmount();
 });
 
-test("WireframeEditor: a controlled value replaces the text; autocomplete and lineNumbers turn off", async () => {
+test("WireframeEditor: a controlled value replaces the text; autocomplete, lineNumbers and lineWrapping turn off", async () => {
   const { h, lib } = await load();
-  const view = await mount(h(lib.WireframeEditor, { value: "board", onChange: () => {}, lineNumbers: false, autocomplete: false, ariaLabel: "Sketch" }));
+  const wrapped = await mount(h(lib.WireframeEditor, { defaultValue: "board" }));
+  assert.ok(wrapped.$(".cm-content")!.classList.contains("cm-lineWrapping"), "wraps by default");
+  await wrapped.unmount();
+  const view = await mount(h(lib.WireframeEditor, { value: "board", onChange: () => {}, lineNumbers: false, lineWrapping: false, autocomplete: false, ariaLabel: "Sketch" }));
   assert.equal(view.$(".cm-lineNumbers"), null);
+  assert.ok(!view.$(".cm-content")!.classList.contains("cm-lineWrapping"), "lineWrapping: false");
   assert.equal(view.$(".cm-content")!.getAttribute("aria-label"), "Sketch");
   await view.rerender(h(lib.WireframeEditor, { value: "board\n  screen phone", onChange: () => {}, lineNumbers: false, autocomplete: false }));
   assert.equal(view.$(".cm-content")!.textContent, "board  screen phone");
