@@ -13,6 +13,8 @@ const created: string[] = [];
 const revoked: string[] = [];
 before(() => {
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  // Node 21+ has its own navigator (read-only); Node 20 has none, and React DOM reads it
+  if (typeof navigator === "undefined") Object.assign(globalThis, { navigator: dom.window.navigator });
   URL.createObjectURL = () => { const u = `blob:test/${created.length + 1}`; created.push(u); return u; };
   URL.revokeObjectURL = (u: string) => { revoked.push(u); };
 });
