@@ -26,8 +26,11 @@
   --_tsq-font-mono: var(--tsquare-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   --_tsq-radius: var(--tsquare-radius, 6px);
 }
-:where(.dark, [data-theme="dark"]) :where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: dark; }
-:where(.light, [data-theme="light"]) :where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: light; }
+/* A dark/light class or data-theme sets a private variable; it inherits, so the nearest one wins
+   (a dark section inside a light page). Unset, color-scheme falls back to inheriting the page's. */
+:where(.dark, [data-theme="dark"]) { --_tsq-scheme: dark; }
+:where(.light, [data-theme="light"]) { --_tsq-scheme: light; }
+:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: var(--_tsq-scheme); }
 
 /* <Wireframe>: the board as an image */
 :where(.tsquare-board) { position: relative; margin: 1em 0; color: var(--_tsq-fg); font-family: var(--_tsq-font); }

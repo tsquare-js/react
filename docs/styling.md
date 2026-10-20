@@ -45,7 +45,7 @@ Point them at your own design tokens:
 The components follow your page's color scheme:
 
 - **`color-scheme`**: if your page sets `color-scheme: dark` (or `light dark`, to follow the system) on `<html>`, the components match it. This is the most reliable way, and most dark modes set it already.
-- **A class or attribute**: a `dark` class or `data-theme="dark"` on any ancestor turns them dark; `light` / `data-theme="light"` turns them light. This covers Tailwind's `dark` class and most theme switchers.
+- **A class or attribute**: a `dark` class or `data-theme="dark"` on any ancestor turns them dark; `light` / `data-theme="light"` turns them light. The nearest one wins, so a dark section inside a light page works. This covers Tailwind's `dark` class and most theme switchers.
 
 A page that changes its colors only with `@media (prefers-color-scheme: dark)` and never declares a color scheme gets the light components. Add `:root { color-scheme: light dark; }` to fix that.
 
