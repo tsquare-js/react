@@ -1,0 +1,166 @@
+/*
+ * @tsquare-js/react: default styles. import "@tsquare-js/react/styles.css"
+ *
+ * Theme: set any of these variables (on :root, or on a component) to match your app:
+ *   --tsquare-bg  --tsquare-fg  --tsquare-muted  --tsquare-border  --tsquare-stage
+ *   --tsquare-accent  --tsquare-accent-fg  --tsquare-error
+ *   --tsquare-font  --tsquare-font-mono  --tsquare-radius  --tsquare-viewer-height
+ *
+ * Light or dark follows the page's color-scheme (`color-scheme: dark` on <html>, or `light dark` to
+ * follow the system), and a `dark`/`light` class or data-theme="dark"/"light" on an ancestor.
+ * Every selector is wrapped in :where(), so your own CSS wins without !important. The board itself
+ * is an image and stays as tsquare draws it.
+ */
+
+/* Defaults, behind the public variables */
+:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) {
+  --_tsq-bg: var(--tsquare-bg, light-dark(#ffffff, #1b1d21));
+  --_tsq-fg: var(--tsquare-fg, light-dark(#1f2328, #e6e8eb));
+  --_tsq-muted: var(--tsquare-muted, light-dark(#656d76, #9aa1a9));
+  --_tsq-border: var(--tsquare-border, light-dark(#d8dce0, #3a3f46));
+  --_tsq-stage: var(--tsquare-stage, light-dark(#f3f4f6, #25282d));
+  --_tsq-accent: var(--tsquare-accent, light-dark(#1f2328, #e6e8eb));
+  --_tsq-accent-fg: var(--tsquare-accent-fg, light-dark(#ffffff, #1b1d21));
+  --_tsq-error: var(--tsquare-error, light-dark(#cf222e, #ff7b72));
+  --_tsq-font: var(--tsquare-font, inherit);
+  --_tsq-font-mono: var(--tsquare-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  --_tsq-radius: var(--tsquare-radius, 6px);
+}
+:where(.dark, [data-theme="dark"]) :where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: dark; }
+:where(.light, [data-theme="light"]) :where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: light; }
+
+/* <Wireframe>: the board as an image */
+:where(.tsquare-board) { position: relative; margin: 1em 0; color: var(--_tsq-fg); font-family: var(--_tsq-font); }
+:where(.tsquare-board-image) { display: block; border-radius: var(--_tsq-radius); transition: opacity 0.15s; }
+:where(.tsquare-board:has(.tsquare-expand)) :where(.tsquare-board-image) { cursor: zoom-in; }
+:where(.tsquare-stale) :where(.tsquare-board-image) { opacity: 0.4; }
+
+:where(.tsquare-expand) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--_tsq-border);
+  border-radius: var(--_tsq-radius);
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+:where(.tsquare-board:hover, .tsquare-board:focus-within) :where(.tsquare-expand) { opacity: 1; }
+@media (hover: none) { :where(.tsquare-expand) { opacity: 1; } }
+
+/* Problems, under a board or over the viewer */
+:where(.tsquare-problems) {
+  margin-top: 0.5em;
+  padding: 0.5em 0.75em;
+  border-left: 3px solid var(--_tsq-error);
+  border-radius: var(--_tsq-radius);
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  font-size: 0.875em;
+}
+:where(.tsquare-problems-title) { color: var(--_tsq-error); font-weight: 600; }
+:where(.tsquare-problems-list) { margin: 0.25em 0 0; padding-left: 1.25em; font-family: var(--_tsq-font-mono); }
+
+/* <WireframeViewer> */
+:where(.tsquare-viewer) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: var(--tsquare-viewer-height, 32rem);
+  border: 1px solid var(--_tsq-border);
+  border-radius: var(--_tsq-radius);
+  overflow: hidden;
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  font-family: var(--_tsq-font);
+}
+:where(.tsquare-viewer-bar) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--_tsq-border);
+}
+:where(.tsquare-chips:not([hidden])) { display: flex; gap: 0.25rem; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+:where(.tsquare-zoom) { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+:where(.tsquare-chips button, .tsquare-zoom button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.625rem;
+  border: 1px solid var(--_tsq-border);
+  border-radius: var(--_tsq-radius);
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:where(.tsquare-chips button[aria-pressed="true"]) { background: var(--_tsq-accent); border-color: var(--_tsq-accent); color: var(--_tsq-accent-fg); }
+:where(.tsquare-zoom-out, .tsquare-zoom-in) { padding: 0; width: 28px; }
+:where(.tsquare-zoom-level) { min-width: 3.75em; color: var(--_tsq-muted); font-variant-numeric: tabular-nums; }
+:where(.tsquare-chips button, .tsquare-zoom button, .tsquare-expand, .tsquare-dialog-close):focus-visible { outline: 2px solid var(--_tsq-accent); outline-offset: 1px; }
+
+:where(.tsquare-stage) { flex: 1; min-height: 0; background: var(--_tsq-stage); cursor: grab; }
+:where(.tsquare-stage.panning) { cursor: grabbing; }
+:where(.tsquare-stage.animate) :where(.tsquare-canvas) { transition: transform 0.25s ease; }
+:where(.tsquare-stage) :where(img) { display: block; user-select: none; -webkit-user-drag: none; transition: opacity 0.15s; }
+:where(.tsquare-stage.stale) :where(img) { opacity: 0.35; }
+
+:where(.tsquare-note) {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  max-height: 40%;
+  overflow: auto;
+}
+:where(.tsquare-note) > :where(.tsquare-problems-title) {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--_tsq-error);
+  border-radius: 999px;
+  background: var(--_tsq-bg);
+  font-size: 0.8125rem;
+}
+
+/* <Wireframe expandable>: the full-size view */
+:where(.tsquare-dialog) {
+  width: min(90vw, 1400px);
+  height: 85vh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--_tsq-border);
+  border-radius: calc(var(--_tsq-radius) * 1.5);
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  font-family: var(--_tsq-font);
+}
+:where(.tsquare-dialog[open]) { display: flex; flex-direction: column; }
+:where(.tsquare-dialog)::backdrop { background: rgb(0 0 0 / 0.5); }
+:where(.tsquare-dialog-header) { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; }
+:where(.tsquare-dialog-title) { font-weight: 600; }
+:where(.tsquare-dialog-close) {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--_tsq-radius);
+  background: transparent;
+  color: var(--_tsq-fg);
+  cursor: pointer;
+}
+:where(.tsquare-dialog) :where(.tsquare-viewer) { flex: 1; height: auto; border: 0; border-top: 1px solid var(--_tsq-border); border-radius: 0; }

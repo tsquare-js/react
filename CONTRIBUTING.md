@@ -10,9 +10,13 @@ To try an unreleased tsquare change, install a local checkout without saving it:
 
 ```bash
 npm install     # builds dist/ through "prepare"
-npm test        # jsdom + React's client renderer + react-markdown
+npm test        # the components in jsdom (React's client renderer, react-markdown), and the docs
 npm run typecheck
 ```
+
+## Docs
+
+`docs/*.md` is the documentation: shipped in the package, and built into tsquare.dev/docs/react by the site, which pins a version of this package (so the site shows the docs of a released version). `npm test` checks them against the code: every `tsx` example typechecks, every prop is documented, links between pages and their anchors resolve, and the wireframes inside examples are valid. Write them for someone who has never seen tsquare; keep README.md short and pointing here.
 
 ## Release
 
