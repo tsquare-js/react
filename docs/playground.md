@@ -17,7 +17,7 @@ export function SketchPad() {
 }
 ```
 
-With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-height`). The editor takes two fifths of the width and the board three.
+With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-height`). The editor and the board share it evenly, side by side or stacked.
 
 ## Props
 
@@ -27,7 +27,7 @@ With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-h
 | `defaultValue` | | The starting text, when the playground keeps it. |
 | `onChange` | | Called with the whole text after every change. |
 | `onProblems` | | Called with the problems when the text has some, after a pause in typing, and with `[]` once they're fixed. |
-| `layout` | `"auto"` | `"row"`: editor left, board right. `"column"`: editor above the board. `"auto"`: a row when the playground is at least 640px wide, a column below that. |
+| `layout` | `"auto"` | `"row"`: editor left, board right. `"column"`: editor above the board. `"auto"`: a row when the playground is at least 900px wide, a column below that (narrower, side by side would leave the editor too little room for its lines). |
 | `showProblems` | `true` | The note on the board counting the problems. The editor underlines them either way. |
 | `chips` | `true` | A chip per screen above the board. |
 | `zoomControls` | `true` | Zoom out, zoom level and zoom in above the board. |

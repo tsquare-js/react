@@ -17,7 +17,7 @@ export interface WireframePlaygroundProps {
   onChange?: (text: string) => void;
   /** Called with the problems when the text has some (after a pause in typing), and with [] once they're fixed. */
   onProblems?: (problems: Problem[]) => void;
-  /** "row": editor left, board right. "column": editor above the board. "auto" (default): row when the playground is at least 640px wide, column below that. */
+  /** "row": editor left, board right. "column": editor above the board. "auto" (default): row when the playground is at least 900px wide, column below that. */
   layout?: "auto" | "row" | "column";
   /** The note on the board counting the problems ("2 problems · showing the last valid board"). Default true; the editor underlines them either way. */
   showProblems?: boolean;

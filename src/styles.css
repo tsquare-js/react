@@ -201,15 +201,15 @@
   color: var(--_tsq-fg);
   font-family: var(--_tsq-font);
 }
-:where(.tsquare-playground-panes) { display: grid; height: 100%; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-@container (max-width: 639px) {
-  :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+:where(.tsquare-playground-panes) { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@container (max-width: 899px) {
+  :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 }
-:where(.tsquare-playground[data-layout="row"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); grid-template-rows: none; }
-:where(.tsquare-playground[data-layout="column"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+:where(.tsquare-playground[data-layout="row"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: none; }
+:where(.tsquare-playground[data-layout="column"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 :where(.tsquare-playground) :where(.tsquare-editor, .tsquare-viewer) { height: 100%; min-height: 0; border: 0; border-radius: 0; }
 :where(.tsquare-playground) :where(.tsquare-viewer) { border-left: 1px solid var(--_tsq-border); }
-@container (max-width: 639px) {
+@container (max-width: 899px) {
   :where(.tsquare-playground) :where(.tsquare-viewer) { border-left: 0; border-top: 1px solid var(--_tsq-border); }
 }
 :where(.tsquare-playground[data-layout="row"]) :where(.tsquare-viewer) { border-left: 1px solid var(--_tsq-border); border-top: 0; }
