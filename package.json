@@ -46,7 +46,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "tsquare": "^0.11.0"
+    "tsquare": "^0.12.0"
   },
   "peerDependencies": {
     "react": ">=18"

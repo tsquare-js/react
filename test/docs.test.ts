@@ -50,6 +50,8 @@ test("every prop and option is documented on its page", () => {
     ["wireframe.tsx", "WireframeProps", "wireframe.md"],
     ["viewer.tsx", "WireframeViewerProps", "viewer.md"],
     ["markdown.tsx", "TsquareComponentsOptions", "chat.md"],
+    ["editor.tsx", "WireframeEditorProps", "editor.md"],
+    ["playground.tsx", "WireframePlaygroundProps", "playground.md"],
   ];
   for (const [file, iface, page] of cases) {
     const names = props(src(file), iface);

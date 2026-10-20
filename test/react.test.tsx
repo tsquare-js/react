@@ -1,23 +1,33 @@
 /**
  * The components in jsdom with React's client renderer and react-markdown: boards, problems and
- * onProblems, streaming, the viewer (chips, zoom), the expanded view, and the stylesheet. jsdom has
- * no ResizeObserver, setPointerCapture or <dialog> methods, so they're stubbed.
+ * onProblems, streaming, the viewer (chips, zoom), the expanded view, the editor and playground, and
+ * the stylesheet. jsdom has no ResizeObserver, setPointerCapture, <dialog> methods or ranges with
+ * layout (CodeMirror), so they're stubbed.
  */
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>");
+const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true }); // requestAnimationFrame, for CodeMirror
+let disconnected = 0; // ResizeObservers stopped (the viewer's destroy())
 before(() => {
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
   // Node 21+ has its own navigator (read-only); Node 20 has none, and React DOM reads it
   if (typeof navigator === "undefined") Object.assign(globalThis, { navigator: dom.window.navigator });
   Object.assign(globalThis, {
-    ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+    ResizeObserver: class { observe() {} unobserve() {} disconnect() { disconnected++; } },
+    // CodeMirror (the editor)
+    MutationObserver: dom.window.MutationObserver,
+    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
+    cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
+    getSelection: dom.window.getSelection.bind(dom.window),
+    Window: dom.window.Window,
     getComputedStyle: dom.window.getComputedStyle.bind(dom.window), // the viewer checks the stage's position
+    AbortController: dom.window.AbortController, // the viewer's listeners: jsdom only takes its own AbortSignal
   });
   dom.window.HTMLElement.prototype.setPointerCapture = () => {};
+  (dom.window.document as any).createRange = () => ({ setStart() {}, setEnd() {}, getClientRects: () => [], getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0 }) });
   const D = dom.window.HTMLDialogElement.prototype as any;
   D.showModal ??= function (this: HTMLDialogElement) { this.setAttribute("open", ""); };
   D.close ??= function (this: HTMLDialogElement) { this.removeAttribute("open"); this.dispatchEvent(new dom.window.Event("close")); };
@@ -257,7 +267,7 @@ test("WireframeStreaming sets streaming for the boards inside (a reply still arr
 
 test("styles.css: every class the components use is styled, every rule is low-priority (:where), dark and light hooks", () => {
   const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
-  const sources = ["wireframe", "viewer", "problems"].map((f) => readFileSync(new URL(`../src/${f}.tsx`, import.meta.url), "utf8")).join("\n");
+  const sources = ["wireframe", "viewer", "problems", "editor", "playground"].map((f) => readFileSync(new URL(`../src/${f}.tsx`, import.meta.url), "utf8")).join("\n");
   const used = new Set([...sources.matchAll(/\btsquare-[a-z-]+/g)].map((m) => m[0]));
   for (const cls of used) assert.ok(css.includes(`.${cls}`), `.${cls} has styles`);
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/[^{}]+(?=\{)/g)!.map((s) => s.trim()).filter((s) => s && !s.startsWith("@"));
@@ -265,4 +275,93 @@ test("styles.css: every class the components use is styled, every rule is low-pr
   assert.match(css, /:where\(\.dark, \[data-theme="dark"\]\)/);
   assert.match(css, /:where\(\.light, \[data-theme="light"\]\)/);
   for (const v of ["bg", "fg", "muted", "border", "stage", "accent", "accent-fg", "error", "font", "font-mono", "radius"]) assert.ok(css.includes(`var(--tsquare-${v},`), `--tsquare-${v}`);
+});
+
+test("WireframeEditor: the text with its accessible name; ref.setText reports through onChange", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const changes: string[] = [];
+  const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onChange: (t: string) => changes.push(t), className: "mine" }));
+  assert.equal(view.$(".tsquare-editor")!.className, "tsquare-editor mine");
+  assert.equal(view.$(".cm-content")!.getAttribute("aria-label"), "Wireframe text");
+  assert.ok(view.$(".cm-lineNumbers"), "line numbers by default");
+  assert.equal(ref.current!.getText(), SIGN_IN);
+  await act(async () => ref.current!.setText("board\n  screen tablet"));
+  assert.deepEqual(changes, ["board\n  screen tablet"]);
+  assert.equal(ref.current!.getText(), "board\n  screen tablet");
+  await view.unmount();
+  assert.equal(view.container.querySelector(".cm-editor"), null, "unmounting removes the editor");
+});
+
+test("WireframeEditor: problems underlined after a pause in typing, onProblems with the list, [] once fixed", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const calls: unknown[] = [];
+  const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onProblems: (p: unknown) => calls.push(p) }));
+  await settle(400);
+  assert.deepEqual(calls, [], "valid starting text: no call");
+
+  await act(async () => ref.current!.setText(BROKEN));
+  assert.equal(view.$(".cm-lintRange-error"), null, "not right away (mid-word, it would flash)");
+  await until(() => !!view.$(".cm-lintRange-error"), "the underline");
+  assert.equal(view.$(".cm-lintRange-error")!.textContent, 'buton "Oops"');
+  assert.equal(calls.length, 1);
+  assert.equal((calls[0] as { line: number }[])[0].line, 3);
+
+  await act(async () => ref.current!.setText(SIGN_IN));
+  await until(() => calls.length === 2, "the all-clear");
+  assert.deepEqual(calls[1], []);
+  assert.equal(view.$(".cm-lintRange-error"), null);
+  await view.unmount();
+});
+
+test("WireframeEditor: a controlled value replaces the text; autocomplete and lineNumbers turn off", async () => {
+  const { h, lib } = await load();
+  const view = await mount(h(lib.WireframeEditor, { value: "board", onChange: () => {}, lineNumbers: false, autocomplete: false, ariaLabel: "Sketch" }));
+  assert.equal(view.$(".cm-lineNumbers"), null);
+  assert.equal(view.$(".cm-content")!.getAttribute("aria-label"), "Sketch");
+  await view.rerender(h(lib.WireframeEditor, { value: "board\n  screen phone", onChange: () => {}, lineNumbers: false, autocomplete: false }));
+  assert.equal(view.$(".cm-content")!.textContent, "board  screen phone");
+  await view.unmount();
+});
+
+test("WireframePlayground: editor and viewer on one text; problems wait for a pause, then underlined and noted", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const calls: unknown[] = [];
+  const view = await mount(h(lib.WireframePlayground, { ref, defaultValue: FLOW, onProblems: (p: unknown) => calls.push(p) }));
+  assert.equal(view.$(".tsquare-playground")!.getAttribute("data-layout"), "auto");
+  assert.ok(view.$(".tsquare-playground-panes > .tsquare-editor"));
+  assert.ok(view.$(".tsquare-playground-panes > .tsquare-viewer"));
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  assert.equal(view.$$(".tsquare-chips button").length, 4);
+
+  await act(async () => ref.current!.setText(FLOW + "\n  buton"));
+  await settle(150);
+  assert.equal(view.$(".tsquare-note"), null, "no note while typing");
+  assert.equal(view.$(".cm-lintRange-error"), null, "no underline while typing");
+  await until(() => !!view.$(".tsquare-note"), "the note after a pause");
+  assert.match(view.$(".tsquare-note")!.textContent!, /^1 problem · showing the last valid board$/);
+  await until(() => !!view.$(".cm-lintRange-error"), "the underline");
+  assert.ok(view.$(".tsquare-stage")!.classList.contains("stale"), "the last good board, dimmed");
+  await until(() => calls.length === 1, "onProblems, once the final text is checked");
+  assert.match((calls[0] as { message: string }[])[0].message, /unknown component "buton"/);
+
+  await view.rerender(h(lib.WireframePlayground, { ref, defaultValue: FLOW, layout: "column", showProblems: false }));
+  assert.equal(view.$(".tsquare-playground")!.getAttribute("data-layout"), "column");
+  assert.equal(view.$(".tsquare-note"), null, "showProblems={false}: no note");
+  assert.ok(view.$(".cm-lintRange-error"), "the editor still underlines");
+  await view.unmount();
+});
+
+test("unmounting a viewer stops it (destroy(): its resize watch, listeners and image)", async () => {
+  const { h, lib } = await load();
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN }));
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  const before = disconnected;
+  await view.unmount();
+  assert.equal(disconnected, before + 1);
 });

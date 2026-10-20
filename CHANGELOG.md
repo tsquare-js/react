@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **`<WireframeEditor>`:** tsquare's code editor (the playground's): highlighting, autocomplete, problems underlined about 300 ms after typing stops, Enter keeping the indentation, a whole pasted model reply trimmed to its code block. `value`/`defaultValue`, `onChange`, `onProblems`, `autocomplete`, `lineNumbers`, `ariaLabel`; a `ref` gets `getText`, `setText`, `focus` and `goToLine`. Built on `tsquare/editor` (tsquare 0.12), with CodeMirror bundled inside it.
+- **`<WireframePlayground>`:** the editor and the viewer side by side on one text (stacked below 640px, or `layout="row"`/`"column"`). While someone types, the board redraws every 200 ms or so and problems wait; after a pause they're underlined in the editor and counted in a note on the board.
+- **The viewer stops when it unmounts** (tsquare's new `destroy()`): no listeners, resize watching or board image left behind.
+- **Styles** for the editor (its colors from the `--tsquare-*` theme; highlighting from `--tsquare-syntax-*`) and the playground; `--tsquare-editor-height`, `--tsquare-playground-height`.
+- **Docs:** Editor and Playground pages; the overview's table and Styling cover them.
+- Needs tsquare 0.12.0 or later.
+
 ## 0.2.0
 
 - **`<WireframeViewer>`:** the board to explore: zoom (buttons, pinch, Ctrl/Cmd + scroll), pan, double-click to fit, and a chip per screen that zooms to it. `chips` and `zoomControls` turn each part off.
