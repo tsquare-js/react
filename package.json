@@ -26,23 +26,27 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./styles.css": "./dist/styles.css"
   },
   "files": [
     "dist/",
     "LICENSE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs/"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "build": "node build.mjs",
-    "test": "tsx --test test/*.test.tsx",
+    "test": "tsx --test test/*.test.tsx test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build"
   },
   "dependencies": {
-    "tsquare": "^0.10.1"
+    "tsquare": "^0.11.0"
   },
   "peerDependencies": {
     "react": ">=18"
