@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - **`<WireframeViewer>`:** the board to explore: zoom (buttons, pinch, Ctrl/Cmd + scroll), pan, double-click to fit, and a chip per screen that zooms to it. `chips` and `zoomControls` turn each part off.
 - **`<Wireframe expandable>`:** a button (and selecting the board) opens it full size in the viewer, in a native dialog.
