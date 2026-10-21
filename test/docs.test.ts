@@ -27,7 +27,7 @@ test("every tsx example in the docs and README typechecks against the package", 
   writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
       target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx", strict: true, skipLibCheck: true, noEmit: true,
-      lib: ["ES2022", "DOM"], baseUrl: ".", paths: { "@tsquare-js/react": ["../../src/index.ts"], "@tsquare-js/react/styles.css": ["../../src/styles.css"] },
+      lib: ["ES2022", "DOM"], baseUrl: ".", paths: { "@tsquare-js/react": ["../../src/index.ts"], "@tsquare-js/react/editor": ["../../src/entry-editor.ts"], "@tsquare-js/react/styles.css": ["../../src/styles.css"] },
     },
     include: ["*.tsx", "css.d.ts"],
   }));

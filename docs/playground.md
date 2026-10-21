@@ -3,7 +3,7 @@
 `<WireframePlayground>` puts the [editor](editor.md) and the [viewer](viewer.md) side by side on one text: type on the left, see the board on the right. It's the tsquare.dev playground's core, for your own app, without the site's menus.
 
 ```tsx
-import { WireframePlayground } from "@tsquare-js/react";
+import { WireframePlayground } from "@tsquare-js/react/editor";
 
 const START = `board "Sign in"
   screen phone
@@ -49,9 +49,14 @@ Keep the text in your state to save it, share it or load another:
 
 ```tsx
 import { useEffect, useState } from "react";
-import { WireframePlayground } from "@tsquare-js/react";
+import { WireframePlayground } from "@tsquare-js/react/editor";
 
 export function SavedSketch({ id, initial }: { id: string; initial: string }) {
+  // keyed by id: another sketch gets fresh state, instead of saving this one's text under its id
+  return <Sketch key={id} id={id} initial={initial} />;
+}
+
+function Sketch({ id, initial }: { id: string; initial: string }) {
   const [text, setText] = useState(() => localStorage.getItem(`sketch:${id}`) ?? initial);
   useEffect(() => { localStorage.setItem(`sketch:${id}`, text); }, [id, text]);
   return <WireframePlayground value={text} onChange={setText} layout="row" />;

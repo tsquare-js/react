@@ -4,7 +4,7 @@
 
 ```tsx
 import { useState } from "react";
-import { WireframeEditor } from "@tsquare-js/react";
+import { WireframeEditor } from "@tsquare-js/react/editor";
 
 export function EditSketch({ initial }: { initial: string }) {
   const [text, setText] = useState(initial);
@@ -44,7 +44,7 @@ A `ref` gets the editor's methods, for a "Load example" button or jumping to a p
 
 ```tsx
 import { useRef } from "react";
-import { WireframeEditor, type WireframeEditorHandle } from "@tsquare-js/react";
+import { WireframeEditor, type WireframeEditorHandle } from "@tsquare-js/react/editor";
 
 export function EditorWithExample({ example }: { example: string }) {
   const editor = useRef<WireframeEditorHandle>(null);
@@ -64,8 +64,8 @@ export function EditorWithExample({ example }: { example: string }) {
 | `focus()` | Put the cursor in the editor. |
 | `goToLine(n)` | Select line `n`, scroll to it and focus the editor. |
 
-## Bundle size
+## Why it's imported from `@tsquare-js/react/editor`
 
-The editor is built on CodeMirror, bundled inside tsquare (about 125 KB compressed after minifying, on top of the renderer). It doesn't share CodeMirror with the rest of your app and takes no CodeMirror extensions. If only some pages edit wireframes, load it when it's first needed (`lazy()` or a dynamic `import()`).
+The editor is built on CodeMirror, bundled inside tsquare (about 125 KB compressed after minifying, on top of the renderer). Importing it from its own entry point keeps it out of apps that only show boards: `@tsquare-js/react` never loads it. It doesn't share CodeMirror with the rest of your app and takes no CodeMirror extensions. If only some pages edit wireframes, load it when it's first needed (`lazy()` or a dynamic `import()`).
 
 Colors and fonts follow the [stylesheet's variables](styling.md); the highlighting has its own (`--tsquare-syntax-*`).

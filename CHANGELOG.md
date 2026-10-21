@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The editor and playground are imported from `@tsquare-js/react/editor`,** their own entry point, because they bundle CodeMirror (about 125 KB compressed): apps that import only `@tsquare-js/react` (boards, viewer, react-markdown) don't get it.
 - **`<WireframeEditor>`:** tsquare's code editor (the playground's): highlighting, autocomplete, problems underlined about 300 ms after typing stops, Enter keeping the indentation, a whole pasted model reply trimmed to its code block, long lines wrapped (continuing 4 spaces past their indentation). `value`/`defaultValue`, `onChange`, `onProblems`, `autocomplete`, `lineNumbers`, `lineWrapping`, `ariaLabel`; a `ref` gets `getText`, `setText`, `focus` and `goToLine`. Built on `tsquare/editor` (tsquare 0.12), with CodeMirror bundled inside it.
 - **`<WireframePlayground>`:** the editor and the viewer side by side on one text, half and half (stacked below 900px, or `layout="row"`/`"column"`). While someone types, the board redraws every 200 ms or so and problems wait; after a pause they're underlined in the editor and counted in a note on the board.
 - **The viewer stops when it unmounts** (tsquare's new `destroy()`): no listeners, resize watching or board image left behind.

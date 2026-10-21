@@ -43,7 +43,7 @@ const BROKEN = 'board\n  screen phone\n    buton "Oops"';
 const load = async () => {
   const React = await import("react");
   const { createRoot } = await import("react-dom/client");
-  const lib = await import("../src/index.js");
+  const lib = { ...(await import("../src/index.js")), ...(await import("../src/entry-editor.js")) };
   const tsquare = await import("tsquare");
   const Markdown = (await import("react-markdown")).default;
   return { h: React.createElement, act: React.act, createRoot, lib, tsquare, Markdown };
@@ -280,7 +280,7 @@ test("styles.css: every class the components use is styled, every rule is low-pr
 test("WireframeEditor: the text with its accessible name; ref.setText reports through onChange", async () => {
   const { h, act, lib } = await load();
   const React = await import("react");
-  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
   const changes: string[] = [];
   const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onChange: (t: string) => changes.push(t), className: "mine" }));
   assert.equal(view.$(".tsquare-editor")!.className, "tsquare-editor mine");
@@ -294,10 +294,25 @@ test("WireframeEditor: the text with its accessible name; ref.setText reports th
   assert.equal(view.container.querySelector(".cm-editor"), null, "unmounting removes the editor");
 });
 
+test("WireframeEditor: the ref works as soon as it's handed out (a callback ref can focus it and read its text)", async () => {
+  const { h, lib } = await load();
+  const seen: { text: string; focused: boolean }[] = [];
+  const view = await mount(h(lib.WireframeEditor, {
+    defaultValue: SIGN_IN,
+    ref: (handle: import("../src/entry-editor.js").WireframeEditorHandle | null) => {
+      if (!handle) return;
+      handle.focus();
+      seen.push({ text: handle.getText(), focused: !!document.activeElement?.closest(".cm-editor") });
+    },
+  }));
+  assert.deepEqual(seen, [{ text: SIGN_IN, focused: true }]);
+  await view.unmount();
+});
+
 test("WireframeEditor: problems underlined after a pause in typing, onProblems with the list, [] once fixed", async () => {
   const { h, act, lib } = await load();
   const React = await import("react");
-  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
   const calls: unknown[] = [];
   const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onProblems: (p: unknown) => calls.push(p) }));
   await settle(400);
@@ -334,7 +349,7 @@ test("WireframeEditor: a controlled value replaces the text; autocomplete, lineN
 test("WireframePlayground: editor and viewer on one text; problems wait for a pause, then underlined and noted", async () => {
   const { h, act, lib } = await load();
   const React = await import("react");
-  const ref = React.createRef<import("../src/index.js").WireframeEditorHandle>();
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
   const calls: unknown[] = [];
   const view = await mount(h(lib.WireframePlayground, { ref, defaultValue: FLOW, onProblems: (p: unknown) => calls.push(p) }));
   assert.equal(view.$(".tsquare-playground")!.getAttribute("data-layout"), "auto");
