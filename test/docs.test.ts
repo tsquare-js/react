@@ -27,7 +27,7 @@ test("every tsx example in the docs and README typechecks against the package", 
   writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
       target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx", strict: true, skipLibCheck: true, noEmit: true,
-      lib: ["ES2022", "DOM"], baseUrl: ".", paths: { "@tsquare-js/react": ["../../src/index.ts"], "@tsquare-js/react/styles.css": ["../../src/styles.css"] },
+      lib: ["ES2022", "DOM"], baseUrl: ".", paths: { "@tsquare-js/react": ["../../src/index.ts"], "@tsquare-js/react/editor": ["../../src/entry-editor.ts"], "@tsquare-js/react/styles.css": ["../../src/styles.css"] },
     },
     include: ["*.tsx", "css.d.ts"],
   }));
@@ -50,6 +50,8 @@ test("every prop and option is documented on its page", () => {
     ["wireframe.tsx", "WireframeProps", "wireframe.md"],
     ["viewer.tsx", "WireframeViewerProps", "viewer.md"],
     ["markdown.tsx", "TsquareComponentsOptions", "chat.md"],
+    ["editor.tsx", "WireframeEditorProps", "editor.md"],
+    ["playground.tsx", "WireframePlaygroundProps", "playground.md"],
   ];
   for (const [file, iface, page] of cases) {
     const names = props(src(file), iface);

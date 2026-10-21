@@ -4,7 +4,10 @@
  * Theme: set any of these variables (on :root, or on a component) to match your app:
  *   --tsquare-bg  --tsquare-fg  --tsquare-muted  --tsquare-border  --tsquare-stage
  *   --tsquare-accent  --tsquare-accent-fg  --tsquare-error
- *   --tsquare-font  --tsquare-font-mono  --tsquare-radius  --tsquare-viewer-height
+ *   --tsquare-font  --tsquare-font-mono  --tsquare-radius
+ *   --tsquare-viewer-height  --tsquare-editor-height  --tsquare-playground-height
+ * The editor's highlighting: --tsquare-syntax-component, -string, -prop, -number, -word, -color,
+ * -comment, -punct (see tsquare/editor in the tsquare README).
  *
  * Light or dark follows the page's color-scheme (`color-scheme: dark` on <html>, or `light dark` to
  * follow the system), and a `dark`/`light` class or data-theme="dark"/"light" on an ancestor.
@@ -13,7 +16,7 @@
  */
 
 /* Defaults, behind the public variables */
-:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) {
+:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog, .tsquare-editor, .tsquare-playground) {
   --_tsq-bg: var(--tsquare-bg, light-dark(#ffffff, #1b1d21));
   --_tsq-fg: var(--tsquare-fg, light-dark(#1f2328, #e6e8eb));
   --_tsq-muted: var(--tsquare-muted, light-dark(#656d76, #9aa1a9));
@@ -30,7 +33,7 @@
    (a dark section inside a light page). Unset, color-scheme falls back to inheriting the page's. */
 :where(.dark, [data-theme="dark"]) { --_tsq-scheme: dark; }
 :where(.light, [data-theme="light"]) { --_tsq-scheme: light; }
-:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog) { color-scheme: var(--_tsq-scheme); }
+:where(.tsquare-board, .tsquare-viewer, .tsquare-dialog, .tsquare-editor, .tsquare-playground) { color-scheme: var(--_tsq-scheme); }
 
 /* <Wireframe>: the board as an image */
 :where(.tsquare-board) { position: relative; margin: 1em 0; color: var(--_tsq-fg); font-family: var(--_tsq-font); }
@@ -167,3 +170,47 @@
   cursor: pointer;
 }
 :where(.tsquare-dialog) :where(.tsquare-viewer) { flex: 1; height: auto; border: 0; border-top: 1px solid var(--_tsq-border); border-radius: 0; }
+
+/* <WireframeEditor>: tsquare/editor, its colors from the theme above (the highlighting keeps the
+   editor's own light/dark defaults unless you set --tsquare-syntax-*) */
+:where(.tsquare-editor) {
+  --tsquare-editor-bg: var(--_tsq-bg);
+  --tsquare-editor-fg: var(--_tsq-fg);
+  --tsquare-editor-gutter: var(--_tsq-muted);
+  --tsquare-editor-error: var(--_tsq-error);
+  --tsquare-editor-popup-bg: var(--_tsq-bg);
+  --tsquare-editor-popup-border: var(--_tsq-border);
+  --tsquare-editor-font: var(--_tsq-font-mono);
+  --tsquare-editor-ui-font: var(--_tsq-font);
+  height: var(--tsquare-editor-height, 20rem);
+  border: 1px solid var(--_tsq-border);
+  border-radius: var(--_tsq-radius);
+  overflow: hidden;
+}
+:where(.tsquare-editor) > :where(.cm-editor) { height: 100%; }
+:where(.tsquare-editor) :where(.cm-editor.cm-focused) { outline: none; }
+
+/* <WireframePlayground>: editor and viewer, side by side when there's room */
+:where(.tsquare-playground) {
+  height: var(--tsquare-playground-height, 36rem);
+  border: 1px solid var(--_tsq-border);
+  border-radius: var(--_tsq-radius);
+  overflow: hidden;
+  container-type: inline-size;
+  background: var(--_tsq-bg);
+  color: var(--_tsq-fg);
+  font-family: var(--_tsq-font);
+}
+:where(.tsquare-playground-panes) { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@container (max-width: 899px) {
+  :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+}
+:where(.tsquare-playground[data-layout="row"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: none; }
+:where(.tsquare-playground[data-layout="column"]) :where(.tsquare-playground-panes) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+:where(.tsquare-playground) :where(.tsquare-editor, .tsquare-viewer) { height: 100%; min-height: 0; border: 0; border-radius: 0; }
+:where(.tsquare-playground) :where(.tsquare-viewer) { border-left: 1px solid var(--_tsq-border); }
+@container (max-width: 899px) {
+  :where(.tsquare-playground) :where(.tsquare-viewer) { border-left: 0; border-top: 1px solid var(--_tsq-border); }
+}
+:where(.tsquare-playground[data-layout="row"]) :where(.tsquare-viewer) { border-left: 1px solid var(--_tsq-border); border-top: 0; }
+:where(.tsquare-playground[data-layout="column"]) :where(.tsquare-viewer) { border-left: 0; border-top: 1px solid var(--_tsq-border); }

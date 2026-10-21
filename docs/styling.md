@@ -28,6 +28,8 @@ The stylesheet reads these CSS variables. Set any of them, on `:root` or on a co
 | `--tsquare-font-mono` | problem lines | `ui-monospace, Menlo, …` |
 | `--tsquare-radius` | corners | `6px` |
 | `--tsquare-viewer-height` | `<WireframeViewer>`'s height | `32rem` |
+| `--tsquare-editor-height` | `<WireframeEditor>`'s height | `20rem` |
+| `--tsquare-playground-height` | `<WireframePlayground>`'s height | `36rem` |
 
 Point them at your own design tokens:
 
@@ -48,6 +50,17 @@ The components follow your page's color scheme:
 - **A class or attribute**: a `dark` class or `data-theme="dark"` on any ancestor turns them dark; `light` / `data-theme="light"` turns them light. The nearest one wins, so a dark section inside a light page works. This covers Tailwind's `dark` class and most theme switchers.
 
 A page that changes its colors only with `@media (prefers-color-scheme: dark)` and never declares a color scheme gets the light components. Add `:root { color-scheme: light dark; }` to fix that.
+
+## The editor's highlighting
+
+The editor takes its background, text, gutter, popups, error color and fonts from the variables above. Its syntax colors have their own, each with a light and a dark default: `--tsquare-syntax-component`, `--tsquare-syntax-string`, `--tsquare-syntax-prop`, `--tsquare-syntax-number`, `--tsquare-syntax-word`, `--tsquare-syntax-color`, `--tsquare-syntax-comment` and `--tsquare-syntax-punct`. The active line and selection are `--tsquare-editor-active-line` and `--tsquare-editor-selection`.
+
+```css
+:root {
+  --tsquare-syntax-component: var(--brand-700);
+  --tsquare-syntax-string: #0a7a42;
+}
+```
 
 For different dark colors, set the variables inside your dark selector:
 
@@ -74,6 +87,8 @@ Every part has a class, so you can restyle it from your CSS. The stylesheet's ru
 | `tsquare-stage` | the area the board moves in, with `tsquare-canvas` inside; it gets `panning` while dragged and `stale` while problems show |
 | `tsquare-note` | problems over the viewer's board |
 | `tsquare-dialog` | the full-size view: `tsquare-dialog-header`, `tsquare-dialog-title`, `tsquare-dialog-close` |
+| `tsquare-editor` | `<WireframeEditor>`'s root; the editor inside is CodeMirror's `cm-editor` |
+| `tsquare-playground` | `<WireframePlayground>`'s root (`data-layout` is `auto`, `row` or `column`), with `tsquare-playground-panes` holding the editor and the viewer |
 
 For example, a quieter problem list and square chips:
 

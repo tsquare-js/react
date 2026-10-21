@@ -18,6 +18,8 @@ The stylesheet is optional but recommended: it styles the buttons, problem lists
 |---|---|
 | Show a wireframe as an image in a page or card | [`<Wireframe>`](wireframe.md) |
 | Let people zoom, pan and jump between screens | [`<WireframeViewer>`](viewer.md), or `<Wireframe expandable>` to open it full size from the image |
+| Let people write or edit wireframe text | [`<WireframeEditor>`](editor.md), from `@tsquare-js/react/editor` |
+| An editor and the board side by side | [`<WireframePlayground>`](playground.md), from `@tsquare-js/react/editor` |
 | Show the ```` ```tsquare ```` blocks in Markdown you render with react-markdown, such as a model's replies in a chat | [`tsquareComponents`](chat.md) |
 | Show a reply while it's still streaming in | [`<WireframeStreaming>`](chat.md#while-a-reply-streams-in) |
 | Handle invalid wireframes yourself, for example by sending the problems back to the model | [`onProblems`](problems.md) |
@@ -47,7 +49,7 @@ The board fits its container's width and keeps its proportions. `expandable` add
 
 Each component turns the wireframe text into an SVG in the browser with the tsquare library's browser build (your bundler picks it automatically) and shows it as an image. The text is checked first: if it has mistakes, the component lists them by line instead, under the last version that worked. The components are client components (`"use client"`); on the server they render an empty frame, filled in once the page loads.
 
-The renderer adds about 1.7 MB minified (490 KB compressed) to your bundle. If wireframes are an occasional thing in your app, load the component when it's first needed:
+The renderer adds about 1.7 MB minified (490 KB compressed) to your bundle. The editor and playground live in their own entry point, `@tsquare-js/react/editor`, because they add CodeMirror (another 125 KB or so); apps that only show boards never load it. If wireframes are an occasional thing in your app, load the component when it's first needed:
 
 ```tsx
 import { lazy, Suspense } from "react";

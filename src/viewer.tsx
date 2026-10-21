@@ -59,7 +59,10 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
       zoomOut: zoomOut.current,
       zoomFit: zoomFit.current,
     });
-    return () => { viewer.current = null; };
+    return () => {
+      viewer.current?.destroy(); // its listeners, the resize watch, the board image
+      viewer.current = null;
+    };
   }, []);
 
   const { board, problems } = state;
