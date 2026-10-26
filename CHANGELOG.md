@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- **Works with tsquare 0.13** as well as 0.12 (from 0.12.1). An app that installs tsquare 0.13 now shares one copy with this package instead of getting a second one. Nothing else changed; the tests pass on both 0.12.1 and 0.13.0.
+
 ## 0.3.0
 
 - **The editor and playground are imported from `@tsquare-js/react/editor`,** their own entry point, because they bundle CodeMirror (about 125 KB compressed): apps that import only `@tsquare-js/react` (boards, viewer, react-markdown) don't get it.
