@@ -1,6 +1,6 @@
 {
   "name": "@tsquare-js/react",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "React component for tsquare wireframes: render wireframe text, or the ```tsquare blocks in react-markdown, including while a model's reply is still streaming in.",
   "keywords": [
     "tsquare",
@@ -51,7 +51,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "tsquare": "^0.12.1 || ^0.13.0"
+    "tsquare": "^0.13.2"
   },
   "peerDependencies": {
     "react": ">=18"
