@@ -92,6 +92,21 @@ test("Wireframe: the board as an image of its SVG, with its size and title", asy
   await view.unmount();
 });
 
+test("Wireframe: the image's size is the SVG's, even when notes wrap differently than their length suggests", async () => {
+  // a notes-only row in a grid: tsquare's boardLayout estimates note heights, measureBoardLayout measures them
+  const wide = "WARNING: MANDATORY REVIEW WINDOW MUST MATCH WORKFLOW WWW MMM QA APPROVAL ".repeat(3).trim();
+  const text = ["board layout=grid columns=2", '  screen phone "Top"', `  note "${wide}"`, `  note "${wide}"`, '  note "Short"', '  screen phone "Below"'].join("\n");
+  const { h, lib, tsquare } = await load();
+  const view = await mount(h(lib.Wireframe, { source: text }));
+  await until(() => !!view.$("img"), "the board");
+  const img = view.$("img") as HTMLImageElement;
+  const svg = svgOf(img.getAttribute("src")!);
+  const [, w, hh] = svg.match(/^<svg width="(\d+)" height="(\d+)"/)!;
+  assert.deepEqual([img.getAttribute("width"), img.getAttribute("height")], [w, hh]);
+  assert.notEqual(String(tsquare.boardLayout(tsquare.compileWireframe(text).spec!).height), hh, "the estimate is off for this board");
+  await view.unmount();
+});
+
 test("Wireframe: problems listed by line, with class names to style; showProblems={false} hides them", async () => {
   const { h, lib } = await load();
   const view = await mount(h(lib.Wireframe, { source: BROKEN }));

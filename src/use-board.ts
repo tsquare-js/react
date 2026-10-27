@@ -5,7 +5,7 @@
  * board in as it goes (waiting for a pause would draw nothing until the stream ends).
  */
 import { useEffect, useRef, useState } from "react";
-import { boardLayout, compileWireframe, renderWireframeSvg } from "tsquare";
+import { compileWireframe, measureBoardLayout, renderWireframeSvg } from "tsquare";
 import type { BoardItem } from "tsquare/viewer";
 
 export interface Problem {
@@ -78,8 +78,8 @@ export function useBoard(source: string, streaming: boolean, onProblems?: (probl
         return;
       }
       try {
-        const svg = await renderWireframeSvg(spec, { skipValidation: true });
-        const { width, height, items } = boardLayout(spec);
+        // the exact layout (notes measured as drawn), so the image's size and the screen chips match the SVG
+        const [svg, { width, height, items }] = await Promise.all([renderWireframeSvg(spec, { skipValidation: true }), measureBoardLayout(spec)]);
         const title = (spec.elements[spec.root]?.props as { title?: string } | undefined)?.title;
         apply(() => ({ board: { svg, width, height, items, title }, problems: [], pending: false }), []);
       } catch (err) {
