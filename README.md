@@ -27,7 +27,7 @@ export function Reply({ text, streaming }: { text: string; streaming: boolean })
 [tsquare.dev/docs/react](https://tsquare.dev/docs/react), also in [`docs/`](docs/README.md):
 
 - [Wireframe](docs/wireframe.md): a board as an image, with an optional full-size view
-- [WireframeViewer](docs/viewer.md): zoom, pan and a button per screen
+- [WireframeViewer](docs/viewer.md): zoom, pan, a button per screen, and clicking elements
 - [WireframeEditor](docs/editor.md): write and edit wireframe text, with autocomplete and problems underlined (from `@tsquare-js/react/editor`)
 - [WireframePlayground](docs/playground.md): the editor and the board side by side (from `@tsquare-js/react/editor`)
 - [Markdown and chat](docs/chat.md): react-markdown, streaming replies

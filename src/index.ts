@@ -9,3 +9,4 @@ export { WireframeViewer, type WireframeViewerProps } from "./viewer.js";
 export { WireframeStreaming } from "./streaming.js";
 export { tsquareComponents, createTsquareComponents, TsquarePre, type TsquareComponentsOptions } from "./markdown.js";
 export type { Problem } from "./use-board.js";
+export type { Measured, MeasuredBox, MeasuredElement, MeasuredFlow } from "tsquare";

@@ -24,6 +24,7 @@ The stylesheet reads these CSS variables. Set any of them, on `:root` or on a co
 | `--tsquare-accent` | the selected screen chip, focus rings | `#1f2328` / `#e6e8eb` |
 | `--tsquare-accent-fg` | text on the accent | `#ffffff` / `#1b1d21` |
 | `--tsquare-error` | problem lists | `#cf222e` / `#ff7b72` |
+| `--tsquare-highlight` | outlines on elements in the viewer (`selected`, hover); works without the stylesheet too | `#3B99FB` |
 | `--tsquare-font` | text | your page's font |
 | `--tsquare-font-mono` | problem lines | `ui-monospace, Menlo, …` |
 | `--tsquare-radius` | corners | `6px` |
@@ -86,6 +87,7 @@ Every part has a class, so you can restyle it from your CSS. The stylesheet's ru
 | `tsquare-viewer-bar` | the bar above the board: `tsquare-chips` (its buttons have `aria-pressed`) and `tsquare-zoom` (`tsquare-zoom-out`, `tsquare-zoom-level`, `tsquare-zoom-in`) |
 | `tsquare-stage` | the area the board moves in, with `tsquare-canvas` inside; it gets `panning` while dragged and `stale` while problems show |
 | `tsquare-note` | problems over the viewer's board |
+| `tsquare-highlight` | an outline on an element in the viewer, with `tsquare-highlight-selected` or `tsquare-highlight-hover` |
 | `tsquare-dialog` | the full-size view: `tsquare-dialog-header`, `tsquare-dialog-title`, `tsquare-dialog-close` |
 | `tsquare-editor` | `<WireframeEditor>`'s root; the editor inside is CodeMirror's `cm-editor` |
 | `tsquare-playground` | `<WireframePlayground>`'s root (`data-layout` is `auto`, `row` or `column`), with `tsquare-playground-panes` holding the editor and the viewer |

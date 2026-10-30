@@ -8,6 +8,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
+import type { MeasuredElement } from "tsquare";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true }); // requestAnimationFrame, for CodeMirror
 let disconnected = 0; // ResizeObservers stopped (the viewer's destroy())
@@ -240,6 +241,130 @@ test("WireframeViewer: chips per screen and zoom buttons, each optional; problem
   await view.rerender(h(lib.WireframeViewer, { source: BROKEN }));
   await until(() => !!view.$(".tsquare-note .tsquare-problems"), "the problems over the board");
   assert.match(view.$(".tsquare-note .tsquare-problem")!.textContent!, /^line 3: /);
+  await view.unmount();
+});
+
+/** A stage with a size (jsdom lays nothing out), then a double-click to fit the board to it (it may have arrived already). */
+async function sizeStage(stage: HTMLElement, width = 800, height = 600) {
+  const { act } = await load();
+  Object.defineProperty(stage, "clientWidth", { value: width });
+  Object.defineProperty(stage, "clientHeight", { value: height });
+  stage.getBoundingClientRect = () => ({ left: 0, top: 0, width, height }) as DOMRect;
+  await act(async () => { stage.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true })); });
+}
+/** Board pixels → the stage's client pixels, from the canvas' transform. */
+function toClient(canvas: HTMLElement, bx: number, by: number) {
+  const m = canvas.style.transform.match(/translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/);
+  assert.ok(m, `transform: ${canvas.style.transform}`);
+  const [x, y, scale] = m.slice(1).map(Number);
+  return { clientX: x + bx * scale, clientY: y + by * scale };
+}
+const pointer = (stage: HTMLElement, type: string, at: { clientX: number; clientY: number }) =>
+  stage.dispatchEvent(new dom.window.PointerEvent(type, { pointerId: 1, pointerType: "mouse", bubbles: true, ...at }));
+/** The center of the element on a line of SIGN_IN, in board pixels. */
+async function centerOf(line: number) {
+  const { tsquare } = await load();
+  const { spec, lines } = tsquare.compileWireframe(SIGN_IN);
+  const entry = (await tsquare.measureElements(spec!, lines)).find((e) => e.line === line && e.type !== "Flow") as MeasuredElement;
+  const { box } = entry;
+  return { entry, x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test("WireframeViewer: onElementClick gets the element clicked and everything under it; dragging pans instead", async () => {
+  const { h, act, lib } = await load();
+  const clicks: [string, number, string[]][] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: (hit, hits) => clicks.push([hit!.type, hit!.line, hits.map((e) => e.type)]) }));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle(); // the elements arrive with the board; setElements runs in an effect
+  await sizeStage(stage);
+
+  const button = await centerOf(11); // button primary lg "Sign in"
+  const at = toClient(canvas, button.x, button.y);
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.deepEqual(clicks, [["Button", 11, ["Button", "Screen", "Board"]]]);
+
+  // a press that moves more than a few pixels is a drag: it pans, and isn't a click
+  const moved = { clientX: at.clientX + 30, clientY: at.clientY };
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointermove", moved); pointer(stage, "pointerup", moved); });
+  assert.equal(clicks.length, 1);
+
+  // empty board, outside the screen: the board itself
+  const empty = toClient(canvas, 2, 2);
+  await act(async () => { pointer(stage, "pointerdown", empty); pointer(stage, "pointerup", empty); });
+  assert.deepEqual(clicks[1], ["Board", 1, ["Board"]]);
+  await view.unmount();
+});
+
+test("WireframeViewer: hovering outlines the element (dashed) when it's clickable, and onElementHover follows the pointer", async () => {
+  const { h, act, lib } = await load();
+  const hovers: (string | null)[] = [];
+  const props = { source: SIGN_IN, onElementHover: (hit: { type: string } | null) => hovers.push(hit?.type ?? null) };
+  const view = await mount(h(lib.WireframeViewer, props));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle(); // the elements arrive with the board; setElements runs in an effect
+  await sizeStage(stage);
+
+  const input = await centerOf(6); // input email "Email"
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, input.x, input.y)));
+  assert.deepEqual(hovers, ["Input"]);
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "no outline: nothing to click (no onElementClick)");
+
+  await view.rerender(h(lib.WireframeViewer, { ...props, onElementClick: () => {} }));
+  const heading = await centerOf(4);
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, heading.x, heading.y)));
+  assert.deepEqual(hovers, ["Input", "Heading"]);
+  const outline = view.$$(".tsquare-highlight-hover");
+  assert.equal(outline.length, 1);
+  assert.deepEqual([outline[0].style.left, outline[0].style.width], [`${heading.entry.box.x}px`, `${heading.entry.box.width}px`], "around the heading, in board pixels");
+
+  await act(async () => { stage.dispatchEvent(new dom.window.PointerEvent("pointerleave", { pointerId: 1 })); });
+  assert.deepEqual(hovers, ["Input", "Heading", null]);
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "gone when the pointer leaves");
+  await view.unmount();
+});
+
+test("WireframeViewer: selected outlines the element on each line; none while the text has problems", async () => {
+  const { h, lib } = await load();
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, selected: 11 }));
+  const outlines = () => view.$$(".tsquare-highlight-selected");
+  await until(() => outlines().length === 1, "the selected outline");
+  const button = await centerOf(11);
+  assert.equal(outlines()[0].style.top, `${button.entry.box.y}px`);
+
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: [6, 7] }));
+  assert.equal(outlines().length, 2, "a list of lines: one outline each");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 8 }));
+  assert.equal(outlines().length, 1, "a container: the stack row");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 1 }));
+  assert.equal(outlines().length, 0, "not the board: it would outline everything");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: null }));
+  assert.equal(outlines().length, 0);
+
+  // with problems, the board shown is the last valid one: its lines no longer match the text
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN + '    buton "Oops"\n', selected: 11 }));
+  await until(() => !!view.$(".tsquare-note .tsquare-problems"), "the problems");
+  assert.ok(view.$(".tsquare-canvas img"), "the last valid board stays");
+  assert.equal(outlines().length, 0);
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 11 }));
+  await until(() => outlines().length === 1, "the outline once the text is fixed");
+  await view.unmount();
+});
+
+test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
+  const { h } = await load();
+  const { useBoard } = await import("../src/use-board.js");
+  const Probe = ({ measure }: { measure: boolean }) => {
+    const { board } = useBoard(SIGN_IN, false, undefined, measure);
+    return h("output", null, board ? String(board.elements?.length ?? "none") : "");
+  };
+  const view = await mount(h(Probe, { measure: false }));
+  await until(() => !!view.$("output")!.textContent, "the board");
+  assert.equal(view.$("output")!.textContent, "none");
+  await view.rerender(h(Probe, { measure: true }));
+  await until(() => view.$("output")!.textContent !== "none", "the elements");
+  assert.ok(Number(view.$("output")!.textContent) > 10);
   await view.unmount();
 });
 

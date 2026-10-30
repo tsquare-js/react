@@ -5,7 +5,7 @@
  * board in as it goes (waiting for a pause would draw nothing until the stream ends).
  */
 import { useEffect, useRef, useState } from "react";
-import { compileWireframe, measureBoardLayout, renderWireframeSvg } from "tsquare";
+import { compileWireframe, measureBoardLayout, measureElements, renderWireframeSvg, type Measured } from "tsquare";
 import type { BoardItem } from "tsquare/viewer";
 
 export interface Problem {
@@ -21,6 +21,8 @@ export interface Board {
   /** Screens and notes with their boxes on the board, for zooming to a screen. */
   items: BoardItem[];
   title?: string;
+  /** Every element and flow with its box and lines (measureElements), when asked for: the viewer's clicks and outlines. */
+  elements?: Measured[];
 }
 
 export interface BoardState {
@@ -34,7 +36,8 @@ export interface BoardState {
 
 const STREAM_INTERVAL = 200;
 
-export function useBoard(source: string, streaming: boolean, onProblems?: (problems: Problem[]) => void): BoardState {
+/** `measure`: also measure every element (a second render's worth of work), for clicks and outlines. */
+export function useBoard(source: string, streaming: boolean, onProblems?: (problems: Problem[]) => void, measure = false): BoardState {
   const [state, setState] = useState<BoardState>({ board: null, problems: [], pending: true });
   const seq = useRef(0);
   const shown = useRef(0);
@@ -71,7 +74,7 @@ export function useBoard(source: string, streaming: boolean, onProblems?: (probl
           if (key !== reported.current) { reported.current = key; callback.current?.(problems); }
         }
       };
-      const { spec, issues } = compileWireframe(text);
+      const { spec, lines, issues } = compileWireframe(text);
       if (!spec || issues.length) {
         const problems = issues.map((i) => ({ line: i.line, message: i.message }));
         apply((s) => ({ ...s, problems }), problems);
@@ -79,15 +82,19 @@ export function useBoard(source: string, streaming: boolean, onProblems?: (probl
       }
       try {
         // the exact layout (notes measured as drawn), so the image's size and the screen chips match the SVG
-        const [svg, { width, height, items }] = await Promise.all([renderWireframeSvg(spec, { skipValidation: true }), measureBoardLayout(spec)]);
+        const [svg, { width, height, items }, elements] = await Promise.all([
+          renderWireframeSvg(spec, { skipValidation: true }),
+          measureBoardLayout(spec),
+          measure ? measureElements(spec, lines, { skipValidation: true }) : undefined,
+        ]);
         const title = (spec.elements[spec.root]?.props as { title?: string } | undefined)?.title;
-        apply(() => ({ board: { svg, width, height, items, title }, problems: [], pending: false }), []);
+        apply(() => ({ board: { svg, width, height, items, title, elements }, problems: [], pending: false }), []);
       } catch (err) {
         const problems = [{ line: 0, message: `tsquare couldn't render this board: ${err instanceof Error ? err.message : String(err)}` }];
         apply((s) => ({ ...s, problems }), problems);
       }
     }
-  }, [source, streaming]);
+  }, [source, streaming, measure]);
 
   return state;
 }
