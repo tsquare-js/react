@@ -111,13 +111,20 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
 
   // While the board is behind the text (typing, streaming), its lines are the older text's: a line
   // from the new text (an editor's caret after Enter) would pick a neighbor, so the outline stays put
-  // until the board catches up.
+  // until the board catches up. A board for older text that lands meanwhile clears it: the outline
+  // was drawn on the board before and doesn't fit this one.
   const lines = selected == null ? "" : [selected].flat().join(",");
   const behind = state.pending && !!elements;
+  const outlinedOn = useRef<Measured[] | null>(null);
   useEffect(() => {
-    if (behind) return;
+    if (behind) {
+      if (elements !== outlinedOn.current) viewer.current?.highlight([]);
+      outlinedOn.current = elements;
+      return;
+    }
     const outlined = !elements || !lines ? [] : lines.split(",").map((n) => elementsAtLine(elements, Number(n))[0]).filter((e) => e && e.type !== "Board");
     viewer.current?.highlight(outlined);
+    outlinedOn.current = elements;
   }, [elements, lines, behind]);
 
   const visible = showProblems && problems.length > 0 && !streaming;

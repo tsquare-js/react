@@ -386,6 +386,38 @@ test("WireframeViewer: when the text and selected change together (Enter in an e
   await view.unmount();
 });
 
+test("WireframeViewer: a board for older text that lands meanwhile clears the outline instead of leaving the last board's over it", async () => {
+  // BoardViewer with the states useBoard goes through, so the order is exact: a board for edit 1
+  // lands while the text is already edit 2's (pending), then edit 2's board
+  const { h, tsquare } = await load();
+  const { BoardViewer } = await import("../src/viewer.js");
+  const boardOf = async (text: string) => {
+    const { spec, lines } = tsquare.compileWireframe(text);
+    const [svg, layout, elements] = await Promise.all([tsquare.renderWireframeSvg(spec!), tsquare.measureBoardLayout(spec!), tsquare.measureElements(spec!, lines)]);
+    return { svg, width: layout.width, height: layout.height, items: layout.items, elements };
+  };
+  const lines = SIGN_IN.split("\n");
+  const edit1 = [...lines.slice(0, 2), '    text "Hi"', ...lines.slice(2)].join("\n"); // "Forgot?" moves to line 11, lower on the board
+  const edit2 = edit1 + "\n";
+  const [board0, board1, board2] = [await boardOf(SIGN_IN), await boardOf(edit1), await boardOf(edit2)];
+  const key = (b: { x: number; y: number; width: number; height: number }) => `${b.x},${b.y} ${b.width}x${b.height}`;
+  const forgot = (b: typeof board0, line: number) => key((b.elements.find((e) => e.line === line && e.type !== "Flow") as MeasuredElement).box);
+  const viewer = (board: typeof board0, pending: boolean, selected: number) => h(BoardViewer, { state: { board, problems: [], pending }, streaming: false, selected });
+
+  const view = await mount(viewer(board0, false, 10));
+  const outlined = () => view.$$(".tsquare-highlight-selected").map((d) => key({ x: parseFloat(d.style.left), y: parseFloat(d.style.top), width: parseFloat(d.style.width), height: parseFloat(d.style.height) }));
+  assert.deepEqual(outlined(), [forgot(board0, 10)]);
+
+  await view.rerender(viewer(board0, true, 11)); // edit 1 typed: the caret's line moved, the board hasn't
+  assert.deepEqual(outlined(), [forgot(board0, 10)], "held while nothing new has landed");
+  await view.rerender(viewer(board1, true, 11)); // edit 1's board lands, but the text is edit 2's
+  assert.notEqual(forgot(board1, 11), forgot(board0, 10), "the button moved on the new board");
+  assert.deepEqual(outlined(), [], "no outline from the board before over this one");
+  await view.rerender(viewer(board2, false, 11));
+  assert.deepEqual(outlined(), [forgot(board2, 11)], "outlined again once the board matches the text");
+  await view.unmount();
+});
+
 test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
   const { h } = await load();
   const { useBoard } = await import("../src/use-board.js");
