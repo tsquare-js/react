@@ -31,7 +31,7 @@ With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-h
 | `showProblems` | `true` | The note on the board counting the problems. The editor underlines them either way. |
 | `chips` | `true` | A chip per screen above the board. |
 | `zoomControls` | `true` | Zoom out, zoom level and zoom in above the board. |
-| `linkBoard` | `true` | Click an element on the board to put the editor's caret on its line, and outline the element at the caret. See [Clicking the board](#clicking-the-board). |
+| `syncSelection` | `true` | Click an element on the board to put the editor's caret on its line, and outline the element at the caret. See [Clicking the board](#clicking-the-board). |
 | `autocomplete` | `true` | Autocomplete in the editor. |
 | `lineNumbers` | `true` | Line numbers in the editor. |
 | `lineWrapping` | `true` | Wrap long lines in the editor instead of scrolling sideways. |
@@ -50,13 +50,13 @@ Click an element on the board, and the editor selects its line. Move the caret i
 
 While the text has problems, the board shows the last valid version, whose lines no longer match the text: clicks pan and nothing is outlined until the problems are fixed.
 
-Turn it off with `linkBoard={false}`, for example where the board is only a preview. Linking measures where every element is drawn, which costs about one more render each time the board is redrawn; off, it costs nothing.
+Turn it off with `syncSelection={false}`, for example where the board is only a preview. Syncing the selection measures where every element is drawn, which costs about one more render each time the board is redrawn; off, it costs nothing.
 
 ```tsx
 import { WireframePlayground } from "@tsquare-js/react/editor";
 
 export function Preview({ text }: { text: string }) {
-  return <WireframePlayground defaultValue={text} linkBoard={false} />;
+  return <WireframePlayground defaultValue={text} syncSelection={false} />;
 }
 ```
 

@@ -1,7 +1,7 @@
 /**
  * <WireframePlayground>: the editor and the viewer side by side (stacked when narrow), sharing one
  * text. While someone types, the board redraws every 200 ms or so and problems wait; after a pause
- * they're underlined in the editor and counted in a note on the viewer. With linkBoard (the
+ * they're underlined in the editor and counted in a note on the viewer. With syncSelection (the
  * default), clicking an element puts the caret on its line, and the caret's element is outlined.
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
@@ -27,7 +27,7 @@ export interface WireframePlaygroundProps {
   /** Zoom out, zoom level and zoom in above the board. Default true. */
   zoomControls?: boolean;
   /** Click an element on the board to put the editor's caret on its line, and outline the element at the caret. Default true. */
-  linkBoard?: boolean;
+  syncSelection?: boolean;
   /** Autocomplete in the editor. Default true. */
   autocomplete?: boolean;
   /** Line numbers in the editor. Default true. */
@@ -41,13 +41,13 @@ export interface WireframePlaygroundProps {
 const TYPING_PAUSE = 400;
 
 export const WireframePlayground = forwardRef<WireframeEditorHandle, WireframePlaygroundProps>(function WireframePlayground(
-  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, linkBoard = true, autocomplete, lineNumbers, lineWrapping, className, style },
+  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, syncSelection = true, autocomplete, lineNumbers, lineWrapping, className, style },
   ref,
 ) {
   const [inner, setInner] = useState(defaultValue ?? "");
   const text = value ?? inner;
   const typing = useTyping(text);
-  const state = useBoard(text, typing, onProblems, linkBoard); // linking needs the elements measured
+  const state = useBoard(text, typing, onProblems, syncSelection); // syncing the selection needs the elements measured
   const [caret, setCaret] = useState<number | null>(null);
   const editor = useRef<WireframeEditorHandle>(null);
   useImperativeHandle(ref, () => ({
@@ -84,8 +84,8 @@ export const WireframePlayground = forwardRef<WireframeEditorHandle, WireframePl
           showProblems={showProblems}
           problemsAs="summary"
           // the caret's move outlines the element (onCursorLine → selected)
-          onElementClick={linkBoard ? (hit) => { if (hit && hit.type !== "Board") editor.current?.goToLine(hit.line); } : undefined}
-          selected={linkBoard ? caret : null}
+          onElementClick={syncSelection ? (hit) => { if (hit && hit.type !== "Board") editor.current?.goToLine(hit.line); } : undefined}
+          selected={syncSelection ? caret : null}
         />
       </div>
     </div>

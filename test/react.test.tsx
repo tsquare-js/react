@@ -582,7 +582,7 @@ test("WireframePlayground: editor and viewer on one text; problems wait for a pa
   await view.unmount();
 });
 
-test("WireframePlayground: clicking an element puts the caret on its line, and the caret's element is outlined; linkBoard={false} turns both off", async () => {
+test("WireframePlayground: clicking an element puts the caret on its line, and the caret's element is outlined; syncSelection={false} turns both off", async () => {
   const { h, act, lib } = await load();
   const React = await import("react");
   const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
@@ -609,7 +609,7 @@ test("WireframePlayground: clicking an element puts the caret on its line, and t
   await act(async () => pointer(stage, "pointermove", at));
   assert.equal(view.$$(".tsquare-highlight-hover").length, 1, "hovering outlines too: the board is clickable");
 
-  await view.rerender(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN, linkBoard: false }));
+  await view.rerender(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN, syncSelection: false }));
   assert.equal(outlines().length, 0, "no caret outline");
   assert.equal(view.$$(".tsquare-highlight-hover").length, 0, "nor the hover outline, right away (not once the board is redrawn)");
   await settle(); // the board redrawn without elements
