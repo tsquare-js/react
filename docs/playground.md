@@ -46,7 +46,7 @@ The board redraws every 200 ms or so with the latest text that's valid, so it ke
 
 ## Clicking the board
 
-Click an element on the board, and the editor selects its line. Move the caret in the editor, and the element on that line is outlined on the board. A line inside a block (a blank line between a stack's children, say) outlines the block. Hovering the board outlines what a click would pick, dashed.
+Click an element on the board, and the editor selects its line. Move the caret in the editor, and the element on that line is outlined on the board. A line inside a block (a blank line between a stack's children, say) outlines the block. Hovering the board outlines what a click would pick, dashed. While you type, the outline stays put until the board is redrawn with your change, so it never jumps to a neighbor whose line just moved.
 
 While the text has problems, the board shows the last valid version, whose lines no longer match the text: clicks pan and nothing is outlined until the problems are fixed.
 

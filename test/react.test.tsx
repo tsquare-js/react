@@ -358,6 +358,34 @@ test("WireframeViewer: selected outlines the element on each line; none while th
   await view.unmount();
 });
 
+test("WireframeViewer: when the text and selected change together (Enter in an editor), the outline waits for the new board", async () => {
+  const { h, tsquare, lib } = await load();
+  // a line added after line 10 (button "Forgot?"), with the caret on it: line 11 is "Help" in the new
+  // text, but "Sign in" in the board still on show until it's redrawn
+  const lines = SIGN_IN.split("\n");
+  const next = [...lines.slice(0, 10), '      button ghost sm "Help"', ...lines.slice(10)].join("\n");
+  const boxOf = async (text: string, line: number) => {
+    const { spec, lines: map } = tsquare.compileWireframe(text);
+    const entry = (await tsquare.measureElements(spec!, map)).find((e) => e.line === line && e.type !== "Flow") as MeasuredElement;
+    return `${entry.box.x},${entry.box.y} ${entry.box.width}x${entry.box.height}`;
+  };
+  const [forgot, signIn, help] = [await boxOf(SIGN_IN, 10), await boxOf(SIGN_IN, 11), await boxOf(next, 11)];
+
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, selected: 10 }));
+  const outlined = () => view.$$(".tsquare-highlight-selected").map((d) => `${parseFloat(d.style.left)},${parseFloat(d.style.top)} ${parseFloat(d.style.width)}x${parseFloat(d.style.height)}`);
+  await until(() => outlined()[0] === forgot, "the Forgot? button outlined");
+
+  // every outline drawn from here on, however quickly the board is redrawn
+  const seen: string[] = [];
+  const watch = new dom.window.MutationObserver(() => seen.push(...outlined()));
+  watch.observe(view.$(".tsquare-canvas")!, { childList: true, subtree: true });
+  await view.rerender(h(lib.WireframeViewer, { source: next, selected: 11 }));
+  await until(() => outlined()[0] === help, "the Help button outlined once the board is redrawn");
+  watch.disconnect();
+  assert.ok(!seen.includes(signIn), `never the old board's line 11 (the Sign in button): saw ${JSON.stringify(seen)}`);
+  await view.unmount();
+});
+
 test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
   const { h } = await load();
   const { useBoard } = await import("../src/use-board.js");

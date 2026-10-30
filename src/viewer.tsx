@@ -109,11 +109,16 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
   const clickable = !!onElementClick;
   useEffect(() => { if (!clickable) viewer.current?.highlight([], { kind: "hover" }); }, [clickable]);
 
+  // While the board is behind the text (typing, streaming), its lines are the older text's: a line
+  // from the new text (an editor's caret after Enter) would pick a neighbor, so the outline stays put
+  // until the board catches up.
   const lines = selected == null ? "" : [selected].flat().join(",");
+  const behind = state.pending && !!elements;
   useEffect(() => {
+    if (behind) return;
     const outlined = !elements || !lines ? [] : lines.split(",").map((n) => elementsAtLine(elements, Number(n))[0]).filter((e) => e && e.type !== "Board");
     viewer.current?.highlight(outlined);
-  }, [elements, lines]);
+  }, [elements, lines, behind]);
 
   const visible = showProblems && problems.length > 0 && !streaming;
   useEffect(() => { viewer.current?.setStale(visible && !!board); }, [visible, board]);

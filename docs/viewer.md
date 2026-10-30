@@ -77,6 +77,7 @@ Each element has its `line` and `endLine` in the text (its whole block, children
 Some details:
 
 - **Lines shift when the text changes.** An element picked on line 11 is on line 12 after someone adds a line above it. For anything that has to survive edits, such as a comment pinned to an element, key it by the element's `id` and give the elements you care about one in the text (`button "Save" #save`).
+- **When `source` and `selected` change together, the outline waits for the new board.** Until it's drawn, the board on show has the old text's lines, so the new line could name a neighbor (after Enter in an editor, the line below). The outline stays where it was, then moves.
 - **While the text has problems, nothing is clickable or outlined.** The viewer still shows the last board that worked, but its lines no longer match the text. Clicks pan, and outlines come back once the text is fixed.
 - **Measuring costs about one more render**, so the viewer only measures the board when you set `onElementClick`, `onElementHover` or `selected`.
 - **The outline color** is the CSS variable `--tsquare-highlight` (see [Styling](styling.md)).
