@@ -72,7 +72,7 @@ export function Pick({ text }: { text: string }) {
 
 Each element has its `line` and `endLine` in the text (its whole block, children included), `type`, `label`, its `#id` if the text gives one, and its `box` on the board. A flow arrow has `type: "Flow"`, `from` and `to`. The full list is in tsquare's [element positions](https://tsquare.dev/docs/element-positions) docs.
 
-`selected` takes a line or a list of lines. A line inside a block, such as a blank line between a stack's children, outlines that block, so you can pass an editor's caret line. The board's own line outlines nothing.
+`selected` takes a line or a list of lines. A line inside a block, such as a blank line between a stack's children, outlines that block, so you can pass an editor's caret line (see [Next to a viewer](editor.md#next-to-a-viewer)). The board's own line outlines nothing.
 
 Some details:
 

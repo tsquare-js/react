@@ -322,6 +322,12 @@ test("WireframeViewer: hovering outlines the element (dashed) when it's clickabl
   await act(async () => { stage.dispatchEvent(new dom.window.PointerEvent("pointerleave", { pointerId: 1 })); });
   assert.deepEqual(hovers, ["Input", "Heading", null]);
   assert.equal(view.$(".tsquare-highlight-hover"), null, "gone when the pointer leaves");
+
+  // no longer clickable (the elements stay, for onElementHover): the outline goes at once
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, heading.x, heading.y)));
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 1);
+  await view.rerender(h(lib.WireframeViewer, props));
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "cleared when onElementClick goes");
   await view.unmount();
 });
 
@@ -513,6 +519,55 @@ test("WireframePlayground: editor and viewer on one text; problems wait for a pa
   assert.equal(view.$(".tsquare-playground")!.getAttribute("data-layout"), "column");
   assert.equal(view.$(".tsquare-note"), null, "showProblems={false}: no note");
   assert.ok(view.$(".cm-lintRange-error"), "the editor still underlines");
+  await view.unmount();
+});
+
+test("WireframePlayground: clicking an element puts the caret on its line, and the caret's element is outlined; linkBoard={false} turns both off", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
+  const view = await mount(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN }));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle();
+  await sizeStage(stage);
+  const activeLine = () => view.$(".cm-activeLine")?.textContent?.trim();
+  const outlines = () => view.$$(".tsquare-highlight-selected");
+  assert.equal(outlines().length, 0, "the caret starts on the board's line: nothing outlined");
+
+  const button = await centerOf(11);
+  const at = toClient(canvas, button.x, button.y);
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.equal(activeLine(), 'button primary lg "Sign in" fullWidth', "the caret on the button's line");
+  assert.equal(outlines().length, 1);
+  assert.equal(outlines()[0].style.top, `${button.entry.box.y}px`, "the button outlined");
+
+  // the caret moving outlines another element
+  await act(async () => ref.current!.goToLine(6));
+  const input = await centerOf(6);
+  assert.equal(outlines()[0].style.top, `${input.entry.box.y}px`);
+  await act(async () => pointer(stage, "pointermove", at));
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 1, "hovering outlines too: the board is clickable");
+
+  await view.rerender(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN, linkBoard: false }));
+  assert.equal(outlines().length, 0, "no caret outline");
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 0, "nor the hover outline, right away (not once the board is redrawn)");
+  await settle(); // the board redrawn without elements
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.equal(activeLine(), 'input email "Email" placeholder="you@example.com"', "a click no longer moves the caret");
+  await view.unmount();
+});
+
+test("WireframeEditor: onCursorLine reports the caret's line when it moves to another one", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
+  const lines: number[] = [];
+  const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onCursorLine: (n: number) => lines.push(n) }));
+  await act(async () => ref.current!.goToLine(6));
+  await act(async () => ref.current!.goToLine(6));
+  await act(async () => ref.current!.goToLine(11));
+  assert.deepEqual(lines, [6, 11]);
   await view.unmount();
 });
 

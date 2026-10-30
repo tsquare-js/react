@@ -31,6 +31,7 @@ With the stylesheet it's 36rem tall (or set a height, or `--tsquare-playground-h
 | `showProblems` | `true` | The note on the board counting the problems. The editor underlines them either way. |
 | `chips` | `true` | A chip per screen above the board. |
 | `zoomControls` | `true` | Zoom out, zoom level and zoom in above the board. |
+| `linkBoard` | `true` | Click an element on the board to put the editor's caret on its line, and outline the element at the caret. See [Clicking the board](#clicking-the-board). |
 | `autocomplete` | `true` | Autocomplete in the editor. |
 | `lineNumbers` | `true` | Line numbers in the editor. |
 | `lineWrapping` | `true` | Wrap long lines in the editor instead of scrolling sideways. |
@@ -42,6 +43,22 @@ A `ref` gets the editor's methods (`getText`, `setText`, `focus`, `goToLine`), a
 ## While someone types
 
 The board redraws every 200 ms or so with the latest text that's valid, so it keeps up without redrawing on every key. Problems wait for a pause: about 400 ms after the last key, the text is checked, problems are underlined in the editor, and a note on the board counts them: "2 problems · showing the last valid board", with that board dimmed. `onProblems` fires then, not while typing.
+
+## Clicking the board
+
+Click an element on the board, and the editor selects its line. Move the caret in the editor, and the element on that line is outlined on the board. A line inside a block (a blank line between a stack's children, say) outlines the block. Hovering the board outlines what a click would pick, dashed.
+
+While the text has problems, the board shows the last valid version, whose lines no longer match the text: clicks pan and nothing is outlined until the problems are fixed.
+
+Turn it off with `linkBoard={false}`, for example where the board is only a preview. Linking measures where every element is drawn, which costs about one more render each time the board is redrawn; off, it costs nothing.
+
+```tsx
+import { WireframePlayground } from "@tsquare-js/react/editor";
+
+export function Preview({ text }: { text: string }) {
+  return <WireframePlayground defaultValue={text} linkBoard={false} />;
+}
+```
 
 ## Saving the text
 

@@ -105,6 +105,10 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
     viewer.current?.highlight([], { kind: "hover" });
   }, [elements]);
 
+  // no longer clickable: no hover outline (new ones aren't drawn; this clears the one showing)
+  const clickable = !!onElementClick;
+  useEffect(() => { if (!clickable) viewer.current?.highlight([], { kind: "hover" }); }, [clickable]);
+
   const lines = selected == null ? "" : [selected].flat().join(",");
   useEffect(() => {
     const outlined = !elements || !lines ? [] : lines.split(",").map((n) => elementsAtLine(elements, Number(n))[0]).filter((e) => e && e.type !== "Board");

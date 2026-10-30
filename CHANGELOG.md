@@ -5,9 +5,11 @@
 - **Click elements in `<WireframeViewer>`:** `onElementClick(hit, hits, event)` gets the element or flow arrow clicked (a press that hardly moves; dragging still pans) and everything under the point, most likely first, each with its lines in the text, type, label, `#id` and box. Hovered elements get a dashed outline. `onElementHover` follows the pointer. `selected` outlines the element on a line, or on each line in a list (a line inside a block, such as an editor's caret, outlines that block). The outline color is `--tsquare-highlight`. Built on tsquare 0.14's viewer events.
 - **The board is measured only when it's needed:** the viewer measures every element (about one more render) only with `onElementClick`, `onElementHover` or `selected`. Other boards cost the same as before.
 - **While the text has problems, nothing is clickable or outlined:** the last valid board's lines no longer match the text.
+- **`<WireframePlayground>` links the board and the text:** click an element to select its line in the editor; move the caret and its element is outlined on the board. On by default; `linkBoard={false}` turns it off (and skips measuring the board).
+- **`<WireframeEditor onCursorLine>`:** the caret's line when it moves to another one, to connect your own editor and viewer (`selected`, `goToLine`).
 - The `Measured` types (`Measured`, `MeasuredElement`, `MeasuredFlow`, `MeasuredBox`) are exported from `@tsquare-js/react`.
 - **Needs tsquare 0.14.0 or later.**
-- **Docs:** the WireframeViewer page has a Clicking elements section; Styling lists `--tsquare-highlight` and the outline classes.
+- **Docs:** the WireframeViewer page has a Clicking elements section, the Playground page Clicking the board, the Editor page Next to a viewer; Styling lists `--tsquare-highlight` and the outline classes.
 
 ## 0.4.0
 
