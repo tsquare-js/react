@@ -418,6 +418,39 @@ test("WireframeViewer: a board for older text that lands meanwhile clears the ou
   await view.unmount();
 });
 
+test("WireframeViewer: while the board is behind the text, clicks aren't reported, and clearing selected clears the outline", async () => {
+  const { h, act, tsquare } = await load();
+  const { BoardViewer } = await import("../src/viewer.js");
+  const { spec, lines } = tsquare.compileWireframe(SIGN_IN);
+  const [svg, layout, elements] = await Promise.all([tsquare.renderWireframeSvg(spec!), tsquare.measureBoardLayout(spec!), tsquare.measureElements(spec!, lines)]);
+  const board = { svg, width: layout.width, height: layout.height, items: layout.items, elements };
+  const clicks: number[] = [];
+  const viewer = (pending: boolean, selected: number | null) =>
+    h(BoardViewer, { state: { board, problems: [], pending }, streaming: false, selected, onElementClick: (hit) => clicks.push(hit!.line) });
+
+  const view = await mount(viewer(false, 11));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await sizeStage(stage);
+  const button = await centerOf(11); // button primary lg "Sign in"
+  const click = () => act(async () => { const at = toClient(canvas, button.x, button.y); pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  await click();
+  assert.deepEqual(clicks, [11]);
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 1);
+
+  // a line typed above the button: the board still shows the text before, so line 11 is the old text's
+  await view.rerender(viewer(true, 11));
+  await click();
+  assert.deepEqual(clicks, [11], "a click on the board that's behind isn't reported");
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 1, "the outline is held");
+  await view.rerender(viewer(true, null)); // syncSelection off, or the host clears its selection
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 0, "clearing the selection doesn't wait for the board");
+
+  await view.rerender(viewer(false, null)); // caught up
+  await click();
+  assert.deepEqual(clicks, [11, 11]);
+  await view.unmount();
+});
+
 test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
   const { h } = await load();
   const { useBoard } = await import("../src/use-board.js");

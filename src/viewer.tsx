@@ -64,9 +64,15 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
   const zoomOut = useRef<HTMLButtonElement>(null);
   const zoomFit = useRef<HTMLButtonElement>(null);
   const viewer = useRef<Viewer | null>(null);
+  const { board, problems } = state;
+  // The elements, while the board matches the text: with problems, the board is the last valid one
+  // and its lines no longer match the text.
+  const elements = problems.length ? null : board?.elements ?? null;
+  // While the board is behind the text (typing, streaming), its lines are the older text's.
+  const behind = state.pending && !!elements;
   // the viewer is made once: its callbacks read the latest props
-  const props = useRef({ onElementClick, onElementHover });
-  props.current = { onElementClick, onElementHover };
+  const props = useRef({ onElementClick, onElementHover, behind });
+  props.current = { onElementClick, onElementHover, behind };
 
   useEffect(() => {
     viewer.current = createViewer({
@@ -77,7 +83,8 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
       zoomOut: zoomOut.current,
       zoomFit: zoomFit.current,
     }, {
-      onElementClick: (hit, hits, event) => props.current.onElementClick?.(hit, hits, event),
+      // not while the board is behind: the hit's line would be the older text's (the editor would go to a neighbor)
+      onElementClick: (hit, hits, event) => { if (!props.current.behind) props.current.onElementClick?.(hit, hits, event); },
       onElementHover: (hit, hits) => {
         if (props.current.onElementClick) viewer.current?.highlight(hit && hit.type !== "Board" ? [hit] : [], { kind: "hover" });
         props.current.onElementHover?.(hit, hits);
@@ -89,7 +96,6 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
     };
   }, []);
 
-  const { board, problems } = state;
   useEffect(() => {
     if (!board || !viewer.current) return;
     viewer.current.show(board.svg, board.width, board.height, board.items);
@@ -97,9 +103,6 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
     if (img) img.alt = board.title ? `Wireframe: ${board.title}` : "Wireframe";
   }, [board]);
 
-  // The elements, while the board matches the text: with problems, the board is the last valid one
-  // and its lines no longer match the text.
-  const elements = problems.length ? null : board?.elements ?? null;
   useEffect(() => {
     viewer.current?.setElements(elements);
     viewer.current?.highlight([], { kind: "hover" });
@@ -109,16 +112,15 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
   const clickable = !!onElementClick;
   useEffect(() => { if (!clickable) viewer.current?.highlight([], { kind: "hover" }); }, [clickable]);
 
-  // While the board is behind the text (typing, streaming), its lines are the older text's: a line
-  // from the new text (an editor's caret after Enter) would pick a neighbor, so the outline stays put
-  // until the board catches up. A board for older text that lands meanwhile clears it: the outline
-  // was drawn on the board before and doesn't fit this one.
+  // While the board is behind, a line from the new text (an editor's caret after Enter) would pick a
+  // neighbor, so the outline stays put until the board catches up. A board for older text that lands
+  // meanwhile clears it: the outline was drawn on the board before and doesn't fit this one. So does
+  // clearing `selected`, which needs no lines matched.
   const lines = selected == null ? "" : [selected].flat().join(",");
-  const behind = state.pending && !!elements;
   const outlinedOn = useRef<Measured[] | null>(null);
   useEffect(() => {
     if (behind) {
-      if (elements !== outlinedOn.current) viewer.current?.highlight([]);
+      if (elements !== outlinedOn.current || !lines) viewer.current?.highlight([]);
       outlinedOn.current = elements;
       return;
     }

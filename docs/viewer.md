@@ -42,6 +42,8 @@ export function Minimal({ text }: { text: string }) {
 
 With `onElementClick`, a click on the board tells you what was clicked: a button, an input, a screen, a flow arrow. Dragging still pans; only a press that hardly moves counts as a click. Hovered elements get a dashed outline, so people can see what they're about to pick. `selected` outlines elements by their line in the text.
 
+While the board is behind its text (redrawing after an edit, or while a reply streams in), its lines are the older text's, so clicks aren't reported until the new board is shown, and `selected` keeps the outline where it was. Clearing `selected` (`null` or `[]`) takes effect right away.
+
 This example outlines the clicked element and shows its lines, the part of the text you'd hand a model to change:
 
 ```tsx
