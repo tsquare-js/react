@@ -1,9 +1,10 @@
 /**
  * <WireframePlayground>: the editor and the viewer side by side (stacked when narrow), sharing one
  * text. While someone types, the board redraws every 200 ms or so and problems wait; after a pause
- * they're underlined in the editor and counted in a note on the viewer.
+ * they're underlined in the editor and counted in a note on the viewer. With syncSelection (the
+ * default), clicking an element puts the caret on its line, and the caret's element is outlined.
  */
-import { forwardRef, useEffect, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
 import { EditorCore, type WireframeEditorHandle } from "./editor.js";
 import { useBoard, type Problem } from "./use-board.js";
 import { BoardViewer } from "./viewer.js";
@@ -25,6 +26,8 @@ export interface WireframePlaygroundProps {
   chips?: boolean;
   /** Zoom out, zoom level and zoom in above the board. Default true. */
   zoomControls?: boolean;
+  /** Click an element on the board to put the editor's caret on its line, and outline the element at the caret. Default true. */
+  syncSelection?: boolean;
   /** Autocomplete in the editor. Default true. */
   autocomplete?: boolean;
   /** Line numbers in the editor. Default true. */
@@ -38,32 +41,52 @@ export interface WireframePlaygroundProps {
 const TYPING_PAUSE = 400;
 
 export const WireframePlayground = forwardRef<WireframeEditorHandle, WireframePlaygroundProps>(function WireframePlayground(
-  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, autocomplete, lineNumbers, lineWrapping, className, style },
+  { value, defaultValue, onChange, onProblems, layout = "auto", showProblems = true, chips = true, zoomControls = true, syncSelection = true, autocomplete, lineNumbers, lineWrapping, className, style },
   ref,
 ) {
   const [inner, setInner] = useState(defaultValue ?? "");
   const text = value ?? inner;
   const typing = useTyping(text);
-  const state = useBoard(text, typing, onProblems);
+  const state = useBoard(text, typing, onProblems, syncSelection); // syncing the selection needs the elements measured
+  const [caret, setCaret] = useState<number | null>(null);
+  const editor = useRef<WireframeEditorHandle>(null);
+  useImperativeHandle(ref, () => ({
+    getText: () => editor.current?.getText() ?? "",
+    setText: (t) => editor.current?.setText(t),
+    focus: () => editor.current?.focus(),
+    goToLine: (line) => editor.current?.goToLine(line),
+  }), []);
   // underline once the text has been checked after a pause; meanwhile keep the current underlines
   const issues = typing || state.pending ? undefined : state.problems;
   return (
     <div className={["tsquare-playground", className].filter(Boolean).join(" ")} data-layout={layout} style={style}>
       <div className="tsquare-playground-panes">
         <EditorCore
-          ref={ref}
+          ref={editor}
           value={value}
           defaultValue={defaultValue}
           onChange={(t) => {
             setInner(t);
             onChange?.(t);
           }}
+          onCursorLine={setCaret}
           issues={issues}
           autocomplete={autocomplete}
           lineNumbers={lineNumbers}
           lineWrapping={lineWrapping}
         />
-        <BoardViewer key={`${chips}${zoomControls}`} state={state} streaming={typing} chips={chips} zoomControls={zoomControls} showProblems={showProblems} problemsAs="summary" />
+        <BoardViewer
+          key={`${chips}${zoomControls}`}
+          state={state}
+          streaming={typing}
+          chips={chips}
+          zoomControls={zoomControls}
+          showProblems={showProblems}
+          problemsAs="summary"
+          // the caret's move outlines the element (onCursorLine → selected)
+          onElementClick={syncSelection ? (hit) => { if (hit && hit.type !== "Board") editor.current?.goToLine(hit.line); } : undefined}
+          selected={syncSelection ? caret : null}
+        />
       </div>
     </div>
   );

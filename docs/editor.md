@@ -22,6 +22,7 @@ The editor fills its box, so give it a height: with the stylesheet it's 20rem un
 | `defaultValue` | | The starting text, when the editor keeps it. |
 | `onChange` | | Called with the whole text after every change. |
 | `onProblems` | | Called with the problems when the text has some, after a pause in typing, and with `[]` once they're fixed. See [Problems](problems.md). |
+| `onCursorLine` | | Called with the caret's line (1 is the first) when it moves to another line. See [Next to a viewer](#next-to-a-viewer). |
 | `autocomplete` | `true` | Suggestions for components, props, option words, icons and accents as you type (Ctrl+Space to ask). |
 | `lineNumbers` | `true` | Line numbers in a gutter. |
 | `lineWrapping` | `true` | Wrap long lines instead of scrolling sideways. A wrapped line continues 4 spaces past its own indentation, so it doesn't look like a nested element. |
@@ -63,6 +64,33 @@ export function EditorWithExample({ example }: { example: string }) {
 | `setText(text)` | Replace everything, as one step undo reverts; `onChange` reports it. |
 | `focus()` | Put the cursor in the editor. |
 | `goToLine(n)` | Select line `n`, scroll to it and focus the editor. |
+
+## Next to a viewer
+
+To build your own layout around the editor and a [viewer](viewer.md), connect them by line: `onCursorLine` gives the caret's line, which the viewer's `selected` outlines, and a click on the board moves the caret with `goToLine`. This is what [WireframePlayground](playground.md#clicking-the-board) does.
+
+```tsx
+import { useRef, useState } from "react";
+import { WireframeViewer } from "@tsquare-js/react";
+import { WireframeEditor, type WireframeEditorHandle } from "@tsquare-js/react/editor";
+
+export function Split({ initial }: { initial: string }) {
+  const [text, setText] = useState(initial);
+  const [caret, setCaret] = useState<number | null>(null);
+  const editor = useRef<WireframeEditorHandle>(null);
+  return (
+    <div style={{ display: "flex", gap: 16 }}>
+      <WireframeEditor ref={editor} value={text} onChange={setText} onCursorLine={setCaret} style={{ flex: 1 }} />
+      <WireframeViewer
+        source={text}
+        selected={caret}
+        onElementClick={(hit) => { if (hit && hit.type !== "Board") editor.current?.goToLine(hit.line); }}
+        style={{ flex: 1 }}
+      />
+    </div>
+  );
+}
+```
 
 ## Why it's imported from `@tsquare-js/react/editor`
 

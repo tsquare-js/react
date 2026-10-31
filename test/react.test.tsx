@@ -8,6 +8,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
+import type { MeasuredElement } from "tsquare";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true }); // requestAnimationFrame, for CodeMirror
 let disconnected = 0; // ResizeObservers stopped (the viewer's destroy())
@@ -243,6 +244,229 @@ test("WireframeViewer: chips per screen and zoom buttons, each optional; problem
   await view.unmount();
 });
 
+/** A stage with a size (jsdom lays nothing out), then a double-click to fit the board to it (it may have arrived already). */
+async function sizeStage(stage: HTMLElement, width = 800, height = 600) {
+  const { act } = await load();
+  Object.defineProperty(stage, "clientWidth", { value: width });
+  Object.defineProperty(stage, "clientHeight", { value: height });
+  stage.getBoundingClientRect = () => ({ left: 0, top: 0, width, height }) as DOMRect;
+  await act(async () => { stage.dispatchEvent(new dom.window.MouseEvent("dblclick", { bubbles: true })); });
+}
+/** Board pixels → the stage's client pixels, from the canvas' transform. */
+function toClient(canvas: HTMLElement, bx: number, by: number) {
+  const m = canvas.style.transform.match(/translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/);
+  assert.ok(m, `transform: ${canvas.style.transform}`);
+  const [x, y, scale] = m.slice(1).map(Number);
+  return { clientX: x + bx * scale, clientY: y + by * scale };
+}
+const pointer = (stage: HTMLElement, type: string, at: { clientX: number; clientY: number }) =>
+  stage.dispatchEvent(new dom.window.PointerEvent(type, { pointerId: 1, pointerType: "mouse", bubbles: true, ...at }));
+/** The center of the element on a line of SIGN_IN, in board pixels. */
+async function centerOf(line: number) {
+  const { tsquare } = await load();
+  const { spec, lines } = tsquare.compileWireframe(SIGN_IN);
+  const entry = (await tsquare.measureElements(spec!, lines)).find((e) => e.line === line && e.type !== "Flow") as MeasuredElement;
+  const { box } = entry;
+  return { entry, x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test("WireframeViewer: onElementClick gets the element clicked and everything under it; dragging pans instead", async () => {
+  const { h, act, lib } = await load();
+  const clicks: [string, number, string[]][] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: (hit, hits) => clicks.push([hit!.type, hit!.line, hits.map((e) => e.type)]) }));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle(); // the elements arrive with the board; setElements runs in an effect
+  await sizeStage(stage);
+
+  const button = await centerOf(11); // button primary lg "Sign in"
+  const at = toClient(canvas, button.x, button.y);
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.deepEqual(clicks, [["Button", 11, ["Button", "Screen", "Board"]]]);
+
+  // a press that moves more than a few pixels is a drag: it pans, and isn't a click
+  const moved = { clientX: at.clientX + 30, clientY: at.clientY };
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointermove", moved); pointer(stage, "pointerup", moved); });
+  assert.equal(clicks.length, 1);
+
+  // empty board, outside the screen: the board itself
+  const empty = toClient(canvas, 2, 2);
+  await act(async () => { pointer(stage, "pointerdown", empty); pointer(stage, "pointerup", empty); });
+  assert.deepEqual(clicks[1], ["Board", 1, ["Board"]]);
+  await view.unmount();
+});
+
+test("WireframeViewer: hovering outlines the element (dashed) when it's clickable, and onElementHover follows the pointer", async () => {
+  const { h, act, lib } = await load();
+  const hovers: (string | null)[] = [];
+  const props = { source: SIGN_IN, onElementHover: (hit: { type: string } | null) => hovers.push(hit?.type ?? null) };
+  const view = await mount(h(lib.WireframeViewer, props));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle(); // the elements arrive with the board; setElements runs in an effect
+  await sizeStage(stage);
+
+  const input = await centerOf(6); // input email "Email"
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, input.x, input.y)));
+  assert.deepEqual(hovers, ["Input"]);
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "no outline: nothing to click (no onElementClick)");
+
+  await view.rerender(h(lib.WireframeViewer, { ...props, onElementClick: () => {} }));
+  const heading = await centerOf(4);
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, heading.x, heading.y)));
+  assert.deepEqual(hovers, ["Input", "Heading"]);
+  const outline = view.$$(".tsquare-highlight-hover");
+  assert.equal(outline.length, 1);
+  assert.deepEqual([outline[0].style.left, outline[0].style.width], [`${heading.entry.box.x}px`, `${heading.entry.box.width}px`], "around the heading, in board pixels");
+
+  await act(async () => { stage.dispatchEvent(new dom.window.PointerEvent("pointerleave", { pointerId: 1 })); });
+  assert.deepEqual(hovers, ["Input", "Heading", null]);
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "gone when the pointer leaves");
+
+  // no longer clickable (the elements stay, for onElementHover): the outline goes at once
+  await act(async () => pointer(stage, "pointermove", toClient(canvas, heading.x, heading.y)));
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 1);
+  await view.rerender(h(lib.WireframeViewer, props));
+  assert.equal(view.$(".tsquare-highlight-hover"), null, "cleared when onElementClick goes");
+  await view.unmount();
+});
+
+test("WireframeViewer: selected outlines the element on each line; none while the text has problems", async () => {
+  const { h, lib } = await load();
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, selected: 11 }));
+  const outlines = () => view.$$(".tsquare-highlight-selected");
+  await until(() => outlines().length === 1, "the selected outline");
+  const button = await centerOf(11);
+  assert.equal(outlines()[0].style.top, `${button.entry.box.y}px`);
+
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: [6, 7] }));
+  assert.equal(outlines().length, 2, "a list of lines: one outline each");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 8 }));
+  assert.equal(outlines().length, 1, "a container: the stack row");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 1 }));
+  assert.equal(outlines().length, 0, "not the board: it would outline everything");
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: null }));
+  assert.equal(outlines().length, 0);
+
+  // with problems, the board shown is the last valid one: its lines no longer match the text
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN + '    buton "Oops"\n', selected: 11 }));
+  await until(() => !!view.$(".tsquare-note .tsquare-problems"), "the problems");
+  assert.ok(view.$(".tsquare-canvas img"), "the last valid board stays");
+  assert.equal(outlines().length, 0);
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, selected: 11 }));
+  await until(() => outlines().length === 1, "the outline once the text is fixed");
+  await view.unmount();
+});
+
+test("WireframeViewer: when the text and selected change together (Enter in an editor), the outline waits for the new board", async () => {
+  const { h, tsquare, lib } = await load();
+  // a line added after line 10 (button "Forgot?"), with the caret on it: line 11 is "Help" in the new
+  // text, but "Sign in" in the board still on show until it's redrawn
+  const lines = SIGN_IN.split("\n");
+  const next = [...lines.slice(0, 10), '      button ghost sm "Help"', ...lines.slice(10)].join("\n");
+  const boxOf = async (text: string, line: number) => {
+    const { spec, lines: map } = tsquare.compileWireframe(text);
+    const entry = (await tsquare.measureElements(spec!, map)).find((e) => e.line === line && e.type !== "Flow") as MeasuredElement;
+    return `${entry.box.x},${entry.box.y} ${entry.box.width}x${entry.box.height}`;
+  };
+  const [forgot, signIn, help] = [await boxOf(SIGN_IN, 10), await boxOf(SIGN_IN, 11), await boxOf(next, 11)];
+
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, selected: 10 }));
+  const outlined = () => view.$$(".tsquare-highlight-selected").map((d) => `${parseFloat(d.style.left)},${parseFloat(d.style.top)} ${parseFloat(d.style.width)}x${parseFloat(d.style.height)}`);
+  await until(() => outlined()[0] === forgot, "the Forgot? button outlined");
+
+  // every outline drawn from here on, however quickly the board is redrawn
+  const seen: string[] = [];
+  const watch = new dom.window.MutationObserver(() => seen.push(...outlined()));
+  watch.observe(view.$(".tsquare-canvas")!, { childList: true, subtree: true });
+  await view.rerender(h(lib.WireframeViewer, { source: next, selected: 11 }));
+  await until(() => outlined()[0] === help, "the Help button outlined once the board is redrawn");
+  watch.disconnect();
+  assert.ok(!seen.includes(signIn), `never the old board's line 11 (the Sign in button): saw ${JSON.stringify(seen)}`);
+  await view.unmount();
+});
+
+test("WireframeViewer: a board for older text that lands meanwhile clears the outline instead of leaving the last board's over it", async () => {
+  // BoardViewer with the states useBoard goes through, so the order is exact: a board for edit 1
+  // lands while the text is already edit 2's (pending), then edit 2's board
+  const { h, tsquare } = await load();
+  const { BoardViewer } = await import("../src/viewer.js");
+  const boardOf = async (text: string) => {
+    const { spec, lines } = tsquare.compileWireframe(text);
+    const [svg, layout, elements] = await Promise.all([tsquare.renderWireframeSvg(spec!), tsquare.measureBoardLayout(spec!), tsquare.measureElements(spec!, lines)]);
+    return { svg, width: layout.width, height: layout.height, items: layout.items, elements };
+  };
+  const lines = SIGN_IN.split("\n");
+  const edit1 = [...lines.slice(0, 2), '    text "Hi"', ...lines.slice(2)].join("\n"); // "Forgot?" moves to line 11, lower on the board
+  const edit2 = edit1 + "\n";
+  const [board0, board1, board2] = [await boardOf(SIGN_IN), await boardOf(edit1), await boardOf(edit2)];
+  const key = (b: { x: number; y: number; width: number; height: number }) => `${b.x},${b.y} ${b.width}x${b.height}`;
+  const forgot = (b: typeof board0, line: number) => key((b.elements.find((e) => e.line === line && e.type !== "Flow") as MeasuredElement).box);
+  const viewer = (board: typeof board0, pending: boolean, selected: number) => h(BoardViewer, { state: { board, problems: [], pending }, streaming: false, selected });
+
+  const view = await mount(viewer(board0, false, 10));
+  const outlined = () => view.$$(".tsquare-highlight-selected").map((d) => key({ x: parseFloat(d.style.left), y: parseFloat(d.style.top), width: parseFloat(d.style.width), height: parseFloat(d.style.height) }));
+  assert.deepEqual(outlined(), [forgot(board0, 10)]);
+
+  await view.rerender(viewer(board0, true, 11)); // edit 1 typed: the caret's line moved, the board hasn't
+  assert.deepEqual(outlined(), [forgot(board0, 10)], "held while nothing new has landed");
+  await view.rerender(viewer(board1, true, 11)); // edit 1's board lands, but the text is edit 2's
+  assert.notEqual(forgot(board1, 11), forgot(board0, 10), "the button moved on the new board");
+  assert.deepEqual(outlined(), [], "no outline from the board before over this one");
+  await view.rerender(viewer(board2, false, 11));
+  assert.deepEqual(outlined(), [forgot(board2, 11)], "outlined again once the board matches the text");
+  await view.unmount();
+});
+
+test("WireframeViewer: while the board is behind the text, clicks aren't reported, and clearing selected clears the outline", async () => {
+  const { h, act, tsquare } = await load();
+  const { BoardViewer } = await import("../src/viewer.js");
+  const { spec, lines } = tsquare.compileWireframe(SIGN_IN);
+  const [svg, layout, elements] = await Promise.all([tsquare.renderWireframeSvg(spec!), tsquare.measureBoardLayout(spec!), tsquare.measureElements(spec!, lines)]);
+  const board = { svg, width: layout.width, height: layout.height, items: layout.items, elements };
+  const clicks: number[] = [];
+  const viewer = (pending: boolean, selected: number | null) =>
+    h(BoardViewer, { state: { board, problems: [], pending }, streaming: false, selected, onElementClick: (hit) => clicks.push(hit!.line) });
+
+  const view = await mount(viewer(false, 11));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await sizeStage(stage);
+  const button = await centerOf(11); // button primary lg "Sign in"
+  const click = () => act(async () => { const at = toClient(canvas, button.x, button.y); pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  await click();
+  assert.deepEqual(clicks, [11]);
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 1);
+
+  // a line typed above the button: the board still shows the text before, so line 11 is the old text's
+  await view.rerender(viewer(true, 11));
+  await click();
+  assert.deepEqual(clicks, [11], "a click on the board that's behind isn't reported");
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 1, "the outline is held");
+  await view.rerender(viewer(true, null)); // syncSelection off, or the host clears its selection
+  assert.equal(view.$$(".tsquare-highlight-selected").length, 0, "clearing the selection doesn't wait for the board");
+
+  await view.rerender(viewer(false, null)); // caught up
+  await click();
+  assert.deepEqual(clicks, [11, 11]);
+  await view.unmount();
+});
+
+test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
+  const { h } = await load();
+  const { useBoard } = await import("../src/use-board.js");
+  const Probe = ({ measure }: { measure: boolean }) => {
+    const { board } = useBoard(SIGN_IN, false, undefined, measure);
+    return h("output", null, board ? String(board.elements?.length ?? "none") : "");
+  };
+  const view = await mount(h(Probe, { measure: false }));
+  await until(() => !!view.$("output")!.textContent, "the board");
+  assert.equal(view.$("output")!.textContent, "none");
+  await view.rerender(h(Probe, { measure: true }));
+  await until(() => view.$("output")!.textContent !== "none", "the elements");
+  assert.ok(Number(view.$("output")!.textContent) > 10);
+  await view.unmount();
+});
+
 test("tsquareComponents: react-markdown's ```tsquare blocks become boards, other code blocks stay", async () => {
   const { h, lib, Markdown } = await load();
   const markdown = `Here's the screen:\n\n\`\`\`tsquare\n${SIGN_IN}\`\`\`\n\nAnd some code:\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n`;
@@ -388,6 +612,55 @@ test("WireframePlayground: editor and viewer on one text; problems wait for a pa
   assert.equal(view.$(".tsquare-playground")!.getAttribute("data-layout"), "column");
   assert.equal(view.$(".tsquare-note"), null, "showProblems={false}: no note");
   assert.ok(view.$(".cm-lintRange-error"), "the editor still underlines");
+  await view.unmount();
+});
+
+test("WireframePlayground: clicking an element puts the caret on its line, and the caret's element is outlined; syncSelection={false} turns both off", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
+  const view = await mount(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN }));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await settle();
+  await sizeStage(stage);
+  const activeLine = () => view.$(".cm-activeLine")?.textContent?.trim();
+  const outlines = () => view.$$(".tsquare-highlight-selected");
+  assert.equal(outlines().length, 0, "the caret starts on the board's line: nothing outlined");
+
+  const button = await centerOf(11);
+  const at = toClient(canvas, button.x, button.y);
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.equal(activeLine(), 'button primary lg "Sign in" fullWidth', "the caret on the button's line");
+  assert.equal(outlines().length, 1);
+  assert.equal(outlines()[0].style.top, `${button.entry.box.y}px`, "the button outlined");
+
+  // the caret moving outlines another element
+  await act(async () => ref.current!.goToLine(6));
+  const input = await centerOf(6);
+  assert.equal(outlines()[0].style.top, `${input.entry.box.y}px`);
+  await act(async () => pointer(stage, "pointermove", at));
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 1, "hovering outlines too: the board is clickable");
+
+  await view.rerender(h(lib.WireframePlayground, { ref, defaultValue: SIGN_IN, syncSelection: false }));
+  assert.equal(outlines().length, 0, "no caret outline");
+  assert.equal(view.$$(".tsquare-highlight-hover").length, 0, "nor the hover outline, right away (not once the board is redrawn)");
+  await settle(); // the board redrawn without elements
+  await act(async () => { pointer(stage, "pointerdown", at); pointer(stage, "pointerup", at); });
+  assert.equal(activeLine(), 'input email "Email" placeholder="you@example.com"', "a click no longer moves the caret");
+  await view.unmount();
+});
+
+test("WireframeEditor: onCursorLine reports the caret's line when it moves to another one", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/entry-editor.js").WireframeEditorHandle>();
+  const lines: number[] = [];
+  const view = await mount(h(lib.WireframeEditor, { ref, defaultValue: SIGN_IN, onCursorLine: (n: number) => lines.push(n) }));
+  await act(async () => ref.current!.goToLine(6));
+  await act(async () => ref.current!.goToLine(6));
+  await act(async () => ref.current!.goToLine(11));
+  assert.deepEqual(lines, [6, 11]);
   await view.unmount();
 });
 

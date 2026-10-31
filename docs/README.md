@@ -18,6 +18,7 @@ The stylesheet is optional but recommended: it styles the buttons, problem lists
 |---|---|
 | Show a wireframe as an image in a page or card | [`<Wireframe>`](wireframe.md) |
 | Let people zoom, pan and jump between screens | [`<WireframeViewer>`](viewer.md), or `<Wireframe expandable>` to open it full size from the image |
+| Let people click an element, or outline one | [`<WireframeViewer>`](viewer.md#clicking-elements) with `onElementClick` and `selected` |
 | Let people write or edit wireframe text | [`<WireframeEditor>`](editor.md), from `@tsquare-js/react/editor` |
 | An editor and the board side by side | [`<WireframePlayground>`](playground.md), from `@tsquare-js/react/editor` |
 | Show the ```` ```tsquare ```` blocks in Markdown you render with react-markdown, such as a model's replies in a chat | [`tsquareComponents`](chat.md) |

@@ -16,6 +16,8 @@ export interface WireframeEditorProps {
   onChange?: (text: string) => void;
   /** Called with the problems when the text has some (after a pause in typing), and with [] once they're fixed. */
   onProblems?: (problems: Problem[]) => void;
+  /** Called with the caret's line (1 = the first) when it moves to another line: pass it to a viewer's `selected` to outline that element. */
+  onCursorLine?: (line: number) => void;
   /** Autocomplete for components, props, option words, icons and accents. Default true. */
   autocomplete?: boolean;
   /** Line numbers. Default true. */
@@ -97,13 +99,15 @@ export interface EditorCoreProps extends Omit<WireframeEditorProps, "onProblems"
 
 /** The editor itself: creates tsquare/editor in a div, keeps it in sync with `value`, underlines `issues`. */
 export const EditorCore = forwardRef<WireframeEditorHandle, EditorCoreProps>(function EditorCore(
-  { value, defaultValue, onChange, issues, autocomplete = true, lineNumbers = true, lineWrapping = true, ariaLabel, className, style },
+  { value, defaultValue, onChange, onCursorLine, issues, autocomplete = true, lineNumbers = true, lineWrapping = true, ariaLabel, className, style },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<EditorInstance | null>(null);
   const change = useRef(onChange);
   change.current = onChange;
+  const cursor = useRef(onCursorLine);
+  cursor.current = onCursorLine;
 
   // Made in a layout effect, which runs before useImperativeHandle below hands out the ref: so a
   // callback ref or a parent's useLayoutEffect can already focus it or read its text.
@@ -115,6 +119,7 @@ export const EditorCore = forwardRef<WireframeEditorHandle, EditorCoreProps>(fun
       lineWrapping,
       ariaLabel,
       onChange: (text) => change.current?.(text),
+      onCursorLine: (line) => cursor.current?.(line),
     });
     editor.current = instance;
     return () => {
