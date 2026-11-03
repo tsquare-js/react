@@ -1,5 +1,8 @@
 # @tsquare-js/react
 
+[![CI](https://github.com/tsquare-js/react/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tsquare-js/react/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@tsquare-js/react)](https://www.npmjs.com/package/@tsquare-js/react)
+
 React components for [tsquare](https://tsquare.dev) wireframes: show a board from wireframe text, let people zoom and pan it, edit it in a playground, and render the ```` ```tsquare ```` blocks in a model's replies, even while they're still streaming in. Boards are drawn in the browser; nothing is sent anywhere.
 
 ```bash
