@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **The npm page links to https://tsquare.dev/docs/react** (package.json `homepage`), the docs for every component with examples. The source stays linked as the repository.
+
 ## 0.5.0
 
 - **Click elements in `<WireframeViewer>`:** `onElementClick(hit, hits, event)` gets the element or flow arrow clicked (a press that hardly moves; dragging still pans) and everything under the point, most likely first, each with its lines in the text, type, label, `#id` and box. Hovered elements get a dashed outline. `onElementHover` follows the pointer. `selected` outlines the element on a line, or on each line in a list (a line inside a block, such as an editor's caret, outlines that block). When the text and `selected` change together, the outline waits for the new board instead of matching the new line against the old one; clicks aren't reported until then, and clearing `selected` takes effect right away. The outline color is `--tsquare-highlight`. Built on tsquare 0.14's viewer events.
