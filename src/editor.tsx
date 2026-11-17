@@ -2,7 +2,8 @@
  * <WireframeEditor>: tsquare's code editor (tsquare/editor, the playground's) in React. Highlighting,
  * autocomplete, problems underlined on their lines as you type.
  */
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { useClientLayoutEffect } from "./client-layout-effect.js";
 import { compileWireframe, languageData } from "tsquare";
 import { createEditor, type WireframeEditor as EditorInstance } from "tsquare/editor";
 import type { Problem } from "./use-board.js";
@@ -88,9 +89,6 @@ function useProblems(initial: string, onProblems?: (problems: Problem[]) => void
 }
 
 const issuesOf = (text: string): Problem[] => compileWireframe(text).issues.map((i) => ({ line: i.line, message: i.message }));
-
-/** useLayoutEffect in the browser; useEffect on the server, where React 18 warns about layout effects. */
-const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export interface EditorCoreProps extends Omit<WireframeEditorProps, "onProblems"> {
   /** Problems to underline; undefined keeps the current ones (while the playground waits for typing to pause). */

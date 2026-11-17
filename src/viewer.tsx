@@ -1,12 +1,14 @@
 /**
  * The zoomable board: tsquare's viewer (the playground's) inside React. Zoom with the buttons, a
  * pinch or Ctrl/Cmd + scroll; drag to pan; a chip per screen zooms to it. With onElementClick,
- * onElementHover or selected, the board's elements are measured too, and the viewer reports clicks
- * and outlines elements.
+ * onElementHover, selected or onElements, the board's elements are measured too, and the viewer
+ * reports clicks and outlines elements. The ref (WireframeViewerHandle) hands out the viewer's layer,
+ * for the host's own marks on the board (comment pins), with toBoard and zoomTo.
  */
-import { useEffect, useRef, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
 import { elementsAtLine } from "tsquare";
-import { createViewer, type Measured, type Viewer } from "tsquare/viewer";
+import { createViewer, type Measured, type MeasuredBox, type Viewer } from "tsquare/viewer";
+import { useClientLayoutEffect } from "./client-layout-effect.js";
 import { MinusIcon, PlusIcon } from "./icons.js";
 import { ProblemList } from "./problems.js";
 import { useStreaming } from "./streaming.js";
@@ -35,18 +37,41 @@ export interface WireframeViewerProps {
   onElementHover?: (hit: Measured | null, hits: Measured[]) => void;
   /** Outline the element on this line (or on each of these lines), such as the one clicked or the one at an editor's caret. */
   selected?: number | number[] | null;
+  /**
+   * Called with every element and flow on the board (their lines, type, label, #id and box) each
+   * time a new board is shown, and with null when the text then has problems. Not while streaming.
+   */
+  onElements?: (elements: Measured[] | null) => void;
   className?: string;
   style?: CSSProperties;
 }
 
-export function WireframeViewer({ source, streaming, onProblems, ...rest }: WireframeViewerProps) {
+/**
+ * What the ref of a <WireframeViewer> gives you, for drawing your own marks on the board. A new
+ * viewer (chips or zoomControls changed) comes with a new handle and layer: a callback ref
+ * (`ref={setViewer}` with useState) follows it.
+ */
+export interface WireframeViewerHandle {
+  /**
+   * An element over the board, in board pixels (where the elements' boxes are): it pans and zooms
+   * with the board. Portal your marks into it. It ignores the pointer; give marks that should be
+   * clickable `pointer-events: auto`. It's on the page once the first board is shown.
+   */
+  readonly layer: HTMLElement;
+  /** A point on the page (a pointer event's clientX/clientY) in board pixels. */
+  toBoard(clientX: number, clientY: number): { x: number; y: number };
+  /** Zooms to an element's box (a flow: its line and label) or any box in board pixels. */
+  zoomTo(target: Measured | MeasuredBox, options?: { animate?: boolean }): void;
+}
+
+export const WireframeViewer = forwardRef<WireframeViewerHandle, WireframeViewerProps>(function WireframeViewer({ source, streaming, onProblems, ...rest }, ref) {
   const isStreaming = useStreaming(streaming);
   // measuring every element is another render's worth of work: only when something uses it
-  const measure = !!(rest.onElementClick || rest.onElementHover || rest.selected != null);
+  const measure = !!(rest.onElementClick || rest.onElementHover || rest.selected != null || rest.onElements);
   const state = useBoard(source, isStreaming, onProblems, measure);
   // chips and zoomControls decide which elements the viewer is given: a change makes a new viewer
-  return <BoardViewer key={`${rest.chips !== false}${rest.zoomControls !== false}`} state={state} streaming={isStreaming} {...rest} />;
-}
+  return <BoardViewer ref={ref} key={`${rest.chips !== false}${rest.zoomControls !== false}`} state={state} streaming={isStreaming} {...rest} />;
+});
 
 export interface BoardViewerProps extends Omit<WireframeViewerProps, "source" | "streaming" | "onProblems"> {
   state: BoardState;
@@ -56,7 +81,7 @@ export interface BoardViewerProps extends Omit<WireframeViewerProps, "source" | 
 }
 
 /** The viewer for board state rendered elsewhere (the playground shares it with its editor; <Wireframe>'s expanded view with its image). */
-export function BoardViewer({ state, streaming, chips = true, zoomControls = true, showProblems = true, problemsAs = "list", onElementClick, onElementHover, selected, className, style }: BoardViewerProps) {
+export const BoardViewer = forwardRef<WireframeViewerHandle, BoardViewerProps>(function BoardViewer({ state, streaming, chips = true, zoomControls = true, showProblems = true, problemsAs = "list", onElementClick, onElementHover, selected, onElements, className, style }, ref) {
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const screens = useRef<HTMLDivElement>(null);
@@ -73,8 +98,12 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
   // the viewer is made once: its callbacks read the latest props
   const props = useRef({ onElementClick, onElementHover, behind });
   props.current = { onElementClick, onElementHover, behind };
+  const elementsCallback = useRef(onElements);
+  elementsCallback.current = onElements;
 
-  useEffect(() => {
+  // Made in a layout effect, which runs before useImperativeHandle below hands out the ref, so the
+  // handle holds this viewer's layer from the start.
+  useClientLayoutEffect(() => {
     viewer.current = createViewer({
       stage: stage.current!,
       canvas: canvas.current!,
@@ -96,6 +125,15 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
     };
   }, []);
 
+  useImperativeHandle(ref, () => {
+    const v = viewer.current!;
+    return {
+      layer: v.layer,
+      toBoard: (clientX, clientY) => v.toBoard(clientX, clientY),
+      zoomTo: (target, options) => v.zoomTo(target, options),
+    };
+  }, []);
+
   useEffect(() => {
     if (!board || !viewer.current) return;
     viewer.current.show(board.svg, board.width, board.height, board.items);
@@ -107,6 +145,17 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
     viewer.current?.setElements(elements);
     viewer.current?.highlight([], { kind: "hover" });
   }, [elements]);
+
+  // onElements: the entries once the board matches the text (a board still behind it, such as the
+  // last one drawn mid-stream when the stream ends, isn't reported); null once the text has problems;
+  // nothing mid-stream.
+  const reportedElements = useRef<Measured[] | null>(null);
+  const settled = !streaming && !state.pending;
+  useEffect(() => {
+    if (!settled || elements === reportedElements.current) return;
+    reportedElements.current = elements;
+    elementsCallback.current?.(elements);
+  }, [elements, settled]);
 
   // no longer clickable: no hover outline (new ones aren't drawn; this clears the one showing)
   const clickable = !!onElementClick;
@@ -166,4 +215,4 @@ export function BoardViewer({ state, streaming, chips = true, zoomControls = tru
       ) : null}
     </div>
   );
-}
+});
