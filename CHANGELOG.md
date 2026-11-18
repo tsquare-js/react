@@ -1,11 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - **Draw your own marks on `<WireframeViewer>`** (comment pins, callouts, a text field next to an element). They pan and zoom with the board and never appear in its PNG or SVG. The viewer's ref gives a `WireframeViewerHandle`: `layer`, an element over the board in board pixels to portal into; `toBoard(clientX, clientY)`; and `zoomTo(element)`. Clicks and drags that start on your marks don't pan the board. A new viewer (after `chips` or `zoomControls` change) comes with a new handle, so use a callback ref.
-- **`onElements(elements)`** on `<WireframeViewer>`: every element and flow on the board, with lines, type, label, `#id` and box. It's called once the board for the current text is drawn, and with `null` once the text has problems. Never mid-stream. It turns measuring on by itself, so you don't measure the board a second time.
+- **`onElements(elements)`** on `<WireframeViewer>`: every element and flow on the board, with lines, type, label, `#id` and box. It's called once the board for the current text is drawn, and with `null` once the text has problems (also when the first text already has some). Never mid-stream. An `onElements` added later gets the current board right away. It turns measuring on by itself, so you don't measure the board a second time.
 - **Docs:** the WireframeViewer page has a Drawing on the board section with a comment-pins example.
-
 - **The npm page links to https://tsquare.dev/docs/react** (package.json `homepage`), the docs for every component with examples. The source stays linked as the repository.
 
 ## 0.5.0
