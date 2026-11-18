@@ -533,6 +533,49 @@ test("WireframeViewer: onElements gets the entries once per board, null once the
   await view.unmount();
 });
 
+test("WireframeViewer: onElements gets null for text with problems from the start", async () => {
+  const { h, lib } = await load();
+  const calls: (number | null)[] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: BROKEN, showProblems: false, onElements: (els) => calls.push(els && els.length) }));
+  await until(() => calls.length === 1, "null for the problems");
+  assert.equal(calls[0], null);
+  await settle();
+  assert.equal(calls.length, 1);
+  await view.unmount();
+});
+
+test("WireframeViewer: an onElements added later gets the current entries, without a null first", async () => {
+  const { h, lib } = await load();
+  const noop = () => {};
+  // measured already (onElementClick): the entries are replayed to the new callback
+  const calls: (number | null)[] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop }));
+  await settle(600);
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop, onElements: (els) => calls.push(els && els.length) }));
+  await until(() => calls.length === 1, "the current entries");
+  assert.ok(calls[0]! > 0);
+  await view.unmount();
+
+  // not measured yet: one call, once the measured board is in (not null for the unmeasured one)
+  const later: (number | null)[] = [];
+  const view2 = await mount(h(lib.WireframeViewer, { source: SIGN_IN }));
+  await settle(600);
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElements: (els) => later.push(els && els.length) }));
+  await until(() => later.length === 1, "the measured entries");
+  assert.ok(later[0]! > 0, "entries, not null");
+  await settle();
+  assert.equal(later.length, 1);
+
+  // removed, then added back: the new callback gets the entries again
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop }));
+  await settle();
+  const again: (number | null)[] = [];
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop, onElements: (els) => again.push(els && els.length) }));
+  await until(() => again.length === 1, "the entries again");
+  assert.ok(again[0]! > 0);
+  await view2.unmount();
+});
+
 test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
   const { h } = await load();
   const { useBoard } = await import("../src/use-board.js");

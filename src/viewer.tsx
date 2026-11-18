@@ -148,14 +148,20 @@ export const BoardViewer = forwardRef<WireframeViewerHandle, BoardViewerProps>(f
 
   // onElements: the entries once the board matches the text (a board still behind it, such as the
   // last one drawn mid-stream when the stream ends, isn't reported); null once the text has problems;
-  // nothing mid-stream.
-  const reportedElements = useRef<Measured[] | null>(null);
+  // nothing mid-stream. undefined = nothing reported yet, so text with problems from the start still
+  // gets its null. A callback added later gets the current entries (reset while there's none); a
+  // callback replaced by another doesn't. A board drawn before measuring was asked for has no entries
+  // yet: it waits for the measured one instead of reporting null.
+  const reportedElements = useRef<Measured[] | null | undefined>(undefined);
   const settled = !streaming && !state.pending;
+  const measured = problems.length > 0 || !!board?.elements;
+  const subscribed = !!onElements;
   useEffect(() => {
-    if (!settled || elements === reportedElements.current) return;
+    if (!subscribed) { reportedElements.current = undefined; return; }
+    if (!settled || !measured || elements === reportedElements.current) return;
     reportedElements.current = elements;
     elementsCallback.current?.(elements);
-  }, [elements, settled]);
+  }, [elements, settled, measured, subscribed]);
 
   // no longer clickable: no hover outline (new ones aren't drawn; this clears the one showing)
   const clickable = !!onElementClick;
