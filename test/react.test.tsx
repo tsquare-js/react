@@ -451,6 +451,131 @@ test("WireframeViewer: while the board is behind the text, clicks aren't reporte
   await view.unmount();
 });
 
+test("WireframeViewer: the ref's layer takes the host's marks over the board; a new viewer comes with a new handle and layer", async () => {
+  const { h, lib } = await load();
+  const React = await import("react");
+  const { createPortal } = await import("react-dom");
+  type Handle = import("../src/index.js").WireframeViewerHandle;
+  const handles: Handle[] = [];
+  function Host({ chips }: { chips: boolean }) {
+    const [viewer, setViewer] = React.useState<Handle | null>(null);
+    React.useEffect(() => { if (viewer) handles.push(viewer); }, [viewer]);
+    return h(React.Fragment, null,
+      h(lib.WireframeViewer, { source: SIGN_IN, chips, ref: setViewer }),
+      viewer ? createPortal(h("button", { className: "pin" }, "1"), viewer.layer) : null);
+  }
+  const view = await mount(h(Host, { chips: true }));
+  assert.equal(handles.length, 1, "the handle is there from the first commit");
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  assert.ok(view.$(".tsquare-canvas > .tsquare-layer > .pin"), "the mark is in the layer, on the canvas the viewer zooms");
+
+  await view.rerender(h(Host, { chips: false })); // a new viewer
+  await until(() => !!view.$(".tsquare-canvas img"), "the new viewer's board");
+  assert.equal(handles.length, 2);
+  assert.notEqual(handles[1].layer, handles[0].layer);
+  assert.equal(view.$$(".pin").length, 1, "the mark moved to the new layer");
+  assert.ok(view.$(".tsquare-canvas > .tsquare-layer > .pin"));
+  await view.unmount();
+});
+
+test("WireframeViewer: the ref's toBoard and zoomTo are the viewer's", async () => {
+  const { h, act, lib } = await load();
+  const React = await import("react");
+  const ref = React.createRef<import("../src/index.js").WireframeViewerHandle>();
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, ref }));
+  const stage = view.$(".tsquare-stage")!, canvas = view.$(".tsquare-canvas")!;
+  await until(() => !!view.$(".tsquare-canvas img"), "the board");
+  await sizeStage(stage);
+
+  const button = await centerOf(11);
+  const at = toClient(canvas, button.x, button.y);
+  const p = ref.current!.toBoard(at.clientX, at.clientY);
+  assert.ok(Math.abs(p.x - button.x) < 1 && Math.abs(p.y - button.y) < 1, `${p.x},${p.y} is the button's center ${button.x},${button.y}`);
+
+  const before = canvas.style.transform;
+  await act(async () => ref.current!.zoomTo(button.entry, { animate: false }));
+  assert.notEqual(canvas.style.transform, before);
+  const middle = ref.current!.toBoard(400, 300); // the stage's center
+  const { box } = button.entry;
+  assert.ok(middle.x > box.x && middle.x < box.x + box.width && middle.y > box.y && middle.y < box.y + box.height, "zoomed onto the button");
+  await view.unmount();
+});
+
+test("WireframeViewer: onElements gets the entries once per board, null once the text has problems, nothing mid-stream", async () => {
+  const { h, lib } = await load();
+  const calls: (string[] | null)[] = [];
+  const onElements = (els: import("tsquare").Measured[] | null) => calls.push(els && els.map((e) => `${e.type}:${e.line}`));
+  const el = (source: string, streaming = false) => h(lib.WireframeViewer, { source, streaming, onElements, showProblems: false });
+
+  const view = await mount(el(SIGN_IN)); // onElements alone turns measuring on
+  await until(() => calls.length === 1, "the first board's entries");
+  assert.ok(calls[0]!.includes("Button:11") && calls[0]!.includes("Board:1"));
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElements: (e) => onElements(e), showProblems: false }));
+  await settle();
+  assert.equal(calls.length, 1, "a new callback or a re-render isn't a new board");
+
+  await view.rerender(el(BROKEN));
+  await until(() => calls.length === 2, "null for the problems");
+  assert.equal(calls[1], null);
+  await view.rerender(el(`${BROKEN}\n    buton "Again"`));
+  await settle();
+  assert.equal(calls.length, 2, "still problems: no second null");
+
+  const lines = FLOW.split("\n");
+  await view.rerender(el(lines.slice(0, 8).join("\n"), true));
+  await settle(600);
+  await view.rerender(el(lines.slice(0, 12).join("\n"), true));
+  await settle(600);
+  assert.equal(calls.length, 2, "nothing while the text streams in, though boards are drawn");
+  await view.rerender(el(FLOW));
+  await until(() => calls.length === 3, "the finished board's entries");
+  assert.equal(calls[2]!.filter((c) => c.startsWith("Screen:")).length, 3, "all three screens");
+  await view.unmount();
+});
+
+test("WireframeViewer: onElements gets null for text with problems from the start", async () => {
+  const { h, lib } = await load();
+  const calls: (number | null)[] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: BROKEN, showProblems: false, onElements: (els) => calls.push(els && els.length) }));
+  await until(() => calls.length === 1, "null for the problems");
+  assert.equal(calls[0], null);
+  await settle();
+  assert.equal(calls.length, 1);
+  await view.unmount();
+});
+
+test("WireframeViewer: an onElements added later gets the current entries, without a null first", async () => {
+  const { h, lib } = await load();
+  const noop = () => {};
+  // measured already (onElementClick): the entries are replayed to the new callback
+  const calls: (number | null)[] = [];
+  const view = await mount(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop }));
+  await settle(600);
+  await view.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop, onElements: (els) => calls.push(els && els.length) }));
+  await until(() => calls.length === 1, "the current entries");
+  assert.ok(calls[0]! > 0);
+  await view.unmount();
+
+  // not measured yet: one call, once the measured board is in (not null for the unmeasured one)
+  const later: (number | null)[] = [];
+  const view2 = await mount(h(lib.WireframeViewer, { source: SIGN_IN }));
+  await settle(600);
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElements: (els) => later.push(els && els.length) }));
+  await until(() => later.length === 1, "the measured entries");
+  assert.ok(later[0]! > 0, "entries, not null");
+  await settle();
+  assert.equal(later.length, 1);
+
+  // removed, then added back: the new callback gets the entries again
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop }));
+  await settle();
+  const again: (number | null)[] = [];
+  await view2.rerender(h(lib.WireframeViewer, { source: SIGN_IN, onElementClick: noop, onElements: (els) => again.push(els && els.length) }));
+  await until(() => again.length === 1, "the entries again");
+  assert.ok(again[0]! > 0);
+  await view2.unmount();
+});
+
 test("useBoard measures the elements only when asked (WireframeViewer: with an element prop)", async () => {
   const { h } = await load();
   const { useBoard } = await import("../src/use-board.js");

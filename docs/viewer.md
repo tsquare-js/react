@@ -25,6 +25,7 @@ It fills its box, so give it a height. With the stylesheet it's 32rem tall unles
 | `onElementClick` | | Called with the element clicked, and everything under the point. See [Clicking elements](#clicking-elements). |
 | `onElementHover` | | Called when the element under the pointer changes, and with `null` when it leaves the board. |
 | `selected` | | Outline the element on this line, or on each line in a list. |
+| `onElements` | | Called with every element on the board each time a new board is shown, and with `null` once the text has problems. See [Drawing on the board](#drawing-on-the-board). |
 | `className` | | Added to the root, next to `tsquare-viewer`. |
 | `style` | | On the root. |
 
@@ -81,8 +82,72 @@ Some details:
 - **Lines shift when the text changes.** An element picked on line 11 is on line 12 after someone adds a line above it. For anything that has to survive edits, such as a comment pinned to an element, key it by the element's `id` and give the elements you care about one in the text (`button "Save" #save`).
 - **When `source` and `selected` change together, the outline waits for the new board.** Until it's drawn, the board on show has the old text's lines, so the new line could name a neighbor (after Enter in an editor, the line below). The outline stays where it was, then moves. If a board for text that has changed since is drawn meanwhile, the outline is cleared instead, since it was drawn on the board before, and comes back with the next board.
 - **While the text has problems, nothing is clickable or outlined.** The viewer still shows the last board that worked, but its lines no longer match the text. Clicks pan, and outlines come back once the text is fixed.
-- **Measuring costs about one more render**, so the viewer only measures the board when you set `onElementClick`, `onElementHover` or `selected`.
+- **Measuring costs about one more render**, so the viewer only measures the board when you set `onElementClick`, `onElementHover`, `selected` or `onElements`.
 - **The outline color** is the CSS variable `--tsquare-highlight` (see [Styling](styling.md)).
+
+## Drawing on the board
+
+You can put your own marks on the board, such as comment pins, numbered callouts or a text field next to an element. They pan and zoom with the board. They're part of your page, not the board, so they never appear in the PNG or SVG.
+
+Two things make this work:
+
+- **The ref.** It gives you a `WireframeViewerHandle`. Its `layer` is an element over the board, measured in board pixels: render your marks into it with `createPortal`.
+- **`onElements`.** It gives you every element on the board with its `box` in the same board pixels, so you know where to put each mark. You don't need to measure the board yourself.
+
+This example puts a pin next to each element that has a comment. Clicking a pin zooms to its element:
+
+```tsx
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { WireframeViewer, type Measured, type MeasuredElement, type WireframeViewerHandle } from "@tsquare-js/react";
+
+interface Comment {
+  element: string; // the element's #id in the text
+  text: string;
+}
+
+export function Comments({ text, comments }: { text: string; comments: Comment[] }) {
+  const [viewer, setViewer] = useState<WireframeViewerHandle | null>(null);
+  const [elements, setElements] = useState<Measured[] | null>(null);
+  const pins = comments.flatMap((comment) => {
+    const el = elements?.find((e): e is MeasuredElement => e.type !== "Flow" && e.id === comment.element);
+    return el ? [{ comment, el }] : [];
+  });
+  return (
+    <>
+      <WireframeViewer ref={setViewer} source={text} onElements={setElements} />
+      {viewer
+        ? createPortal(
+            pins.map(({ comment, el }) => (
+              <button
+                key={comment.element}
+                title={comment.text}
+                onClick={() => viewer.zoomTo(el)}
+                style={{ position: "absolute", left: el.box.x + el.box.width - 8, top: el.box.y - 8, pointerEvents: "auto" }}
+              >
+                💬
+              </button>
+            )),
+            viewer.layer,
+          )
+        : null}
+    </>
+  );
+}
+```
+
+The handle has:
+
+- **`layer`**: the element to portal into. Place marks with `position: absolute` and `left`/`top` in board pixels. It ignores the pointer so the board can still be dragged; give marks that should be clicked `pointer-events: auto`. Clicks and drags that start on them don't pan the board or count as element clicks.
+- **`toBoard(clientX, clientY)`**: a point on the page in board pixels. Use it to drop a pin exactly where someone clicked: `onElementClick={(hit, hits, event) => { const at = viewer.toBoard(event.clientX, event.clientY); … }}`.
+- **`zoomTo(element)`**: zooms to an element (or any `{ x, y, width, height }` box in board pixels), as the screen chips do. Pass `{ animate: false }` to jump there.
+
+Some details:
+
+- **Use a callback ref** (`ref={setViewer}` with `useState`), as in the example. Changing `chips` or `zoomControls` makes a new viewer, with a new handle and layer; a callback ref re-renders your component with the new one, so your marks move to it. A ref from `useRef` changes without a re-render, and your marks would stay in the old layer.
+- **`onElements` fires once per board**, after the board for the current text is drawn: not while a reply streams in, and not for a board that's still behind the text. A new viewer (`chips` or `zoomControls` changed) reports its board again, and so does an `onElements` you add later (switching to another function doesn't). While the text has problems it gets `null` (also when the first text already has some), because the last board's lines no longer match the text; keep showing your marks on the last entries if you prefer.
+- **Key marks by `#id`, not by line.** Lines shift when someone edits the text above an element; an `#id` doesn't. Give the elements people comment on one (`button "Save" #save`), or match by `type` and `label` when the text has none.
+- **Marks grow when the board is zoomed in**, since the layer is scaled with it. For marks that keep their size on screen, scale them back with the variable the viewer sets on its canvas: `transform: scale(calc(1 / var(--tsquare-viewer-scale)))`, with `transform-origin` at the point the mark is pinned to.
 
 ## When the text changes
 
